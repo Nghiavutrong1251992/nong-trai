@@ -1,0 +1,28 @@
+# Node & Build
+node_modules/
+dist/
+.vite/
+__pycache__/
+*.pyc
+
+# Raw Material Folders & Assets (Ảnh nguyên liệu)
+tưới nước/
+cuoc-dat-lau-mo-hoi/
+thu hoạch/
+cầm liếm/
+cầm thùng nước/
+cam-cuoc/
+temp_*/
+scratch/
+
+# Binary media raw files
+*.mp4
+*.zip
+*.pdf
+*.log
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

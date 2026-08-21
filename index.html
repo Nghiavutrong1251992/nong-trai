@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🌾 Làng Quê Việt — Ký Sự Đồng Quê 2D</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary-red: #e11d48;
+      --glass-bg: rgba(15, 23, 42, 0.85);
+      --glass-border: rgba(255, 255, 255, 0.18);
+      --glass-shadow: 0 10px 36px 0 rgba(0, 0, 0, 0.55);
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      font-family: 'Outfit', sans-serif;
+    }
+    body {
+      background: #08110b;
+      color: #f8fafc;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Glassmorphism Classes */
+    .glass-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      border-radius: 16px;
+    }
+
+    /* Floating Toast */
+    #toast {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 22px;
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fef08a;
+      opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Controls Bar / Touch D-Pad */
+    #touch-controls {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      display: flex;
+      gap: 12px;
+      z-index: 50;
+    }
+    .ctrl-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-size: 22px;
+      font-weight: 800;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      transition: all 0.12s;
+    }
+    .ctrl-btn:active {
+      transform: scale(0.92);
+      background: #0284c7;
+      border-color: #38bdf8;
+    }
+
+    /* Right Action Buttons */
+    #action-buttons {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      gap: 12px;
+      z-index: 50;
+    }
+    .action-btn {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      border-radius: 18px;
+      padding: 12px 18px;
+      color: #cbd5e1;
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      transition: all 0.15s;
+    }
+    .action-btn.jump-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      justify-content: center;
+      background: linear-gradient(135deg, #10b981, #059669);
+      border-color: #34d399;
+      font-size: 20px;
+    }
+    /* Mode Tabs */
+    #mode-tabs {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 60;
+    }
+    .mode-tab {
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #94a3b8;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 24px;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .mode-tab:hover {
+      color: #f8fafc;
+      border-color: #38bdf8;
+    }
+    .mode-tab.active {
+      color: #fde047;
+      border-color: #facc15;
+      background: rgba(30, 41, 59, 0.95);
+      box-shadow: 0 0 16px rgba(250, 204, 21, 0.35);
+    }
+
+    /* Action Buttons */
+    .action-btn:hover {
+      border-color: #38bdf8;
+      color: #fff;
+      transform: translateY(-2px);
+    }
+    .action-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Bottom Guide Pill */
+    #guide-pill {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      pointer-events: none;
+      z-index: 40;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Mode Switcher Tabs -->
+    <div id="mode-tabs">
+      <button class="mode-tab active" id="tab-map1">🌾 Map 1: Đường Làng Quê 2D</button>
+      <button class="mode-tab" id="tab-studio">🎬 Studio Đo Đạc Hoạt Ảnh</button>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="glass-panel">Thông báo</div>
+
+    <!-- Mobile Touch D-Pad Controls -->
+    <div id="touch-controls">
+      <button class="ctrl-btn" id="btn-left">◀</button>
+      <button class="ctrl-btn" id="btn-right">▶</button>
+    </div>
+
+    <!-- Action Buttons (Q: Rút/Đổi/Cất dụng cụ · E: Dùng dụng cụ) -->
+    <div id="action-buttons">
+      <button class="action-btn" id="btn-cycle-tool">🔄 Đổi Dụng Cụ [Q]</button>
+      <button class="action-btn" id="btn-use-tool" style="background: rgba(225, 29, 72, 0.85); border-color: #fda4af;">⚡ Dùng Dụng Cụ [E]</button>
+      <button class="action-btn jump-btn" id="btn-jump">⬆</button>
+    </div>
+
+    <!-- PC Guide Pill -->
+    <div id="guide-pill" class="glass-panel">
+      🎮 Điều khiển: [A / D] Đi lại · [W / Space] Nhảy · [Q] Rút / Đổi / Cất dụng cụ · [E] Dùng dụng cụ
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sprite Creator - Làng Quê Việt</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      color: #eee;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #e2d1b5, #c4a97d);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle { color: #888; margin-bottom: 20px; font-size: 14px; }
+    .main-container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 1400px;
+    }
+    .panel {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid #333;
+    }
+    .sprite-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 12px;
+    }
+    .sprite-card {
+      text-align: center;
+      background: #0f3460;
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+    .sprite-card:hover { border-color: #e2d1b5; transform: scale(1.03); }
+    .sprite-card.selected { border-color: #c4a97d; background: #1a4a7a; }
+    .sprite-card canvas {
+      image-rendering: pixelated;
+      border: 1px solid #444;
+      background: #f5f0e8;
+      border-radius: 4px;
+    }
+    .sprite-card .label {
+      font-size: 11px;
+      margin-top: 6px;
+      color: #aaa;
+    }
+    .preview-panel {
+      min-width: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .preview-panel h3 { color: #c4a97d; margin-bottom: 4px; }
+    #previewCanvas {
+      image-rendering: pixelated;
+      border: 2px solid #555;
+      background: #f5f0e8;
+      border-radius: 8px;
+    }
+    #animCanvas {
+      image-rendering: pixelated;
+      border: 2px solid #555;
+      background: #f5f0e8;
+      border-radius: 8px;
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #c4a97d, #a0845c);
+      color: #1a1a2e;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(196,169,125,0.4); }
+    .btn-secondary {
+      background: #333;
+      color: #ccc;
+    }
+    .btn-secondary:hover { background: #444; }
+    .buttons { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .sheet-preview {
+      margin-top: 16px;
+      text-align: center;
+    }
+    .sheet-preview canvas {
+      image-rendering: pixelated;
+      border: 2px solid #555;
+      background: #f5f0e8;
+      border-radius: 8px;
+    }
+    .section-title {
+      font-size: 14px;
+      color: #c4a97d;
+      margin: 12px 0 8px;
+      text-align: left;
+      width: 100%;
+      border-bottom: 1px solid #333;
+      padding-bottom: 4px;
+    }
+    .info-box {
+      background: #0a1628;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      color: #888;
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+    .info-box strong { color: #c4a97d; }
+  </style>
+</head>
+<body>
+  <h1>🎨 Sprite Creator — Làng Quê Việt</h1>
+  <p class="subtitle">Phong cách thủy mặc đen trắng • Flat 2D Side-View • 32×32px</p>
+
+  <div class="main-container">
+    <!-- Left: Sprite Grid -->
+    <div class="panel" style="flex: 1; min-width: 500px;">
+      <div class="section-title">👤 Nhân vật chính — Nông dân (Farmer Boy)</div>
+      <div class="sprite-grid" id="farmerGrid"></div>
+
+      <div class="section-title">🧓 NPC — Dân làng</div>
+      <div class="sprite-grid" id="npcGrid"></div>
+
+      <div class="section-title">🐄 Động vật</div>
+      <div class="sprite-grid" id="animalGrid"></div>
+
+      <div class="section-title">🌳 Tiles & Vật thể</div>
+      <div class="sprite-grid" id="tileGrid"></div>
+    </div>
+
+    <!-- Right: Preview & Export -->
+    <div class="panel preview-panel">
+      <h3>🔍 Preview (x8 zoom)</h3>
+      <canvas id="previewCanvas" width="256" height="256"></canvas>
+
+      <h3>🎬 Animation</h3>
+      <canvas id="animCanvas" width="128" height="128"></canvas>
+
+      <div class="buttons">
+        <button class="btn btn-primary" onclick="exportSpriteSheet()">📦 Export Sprite Sheet</button>
+        <button class="btn btn-secondary" onclick="exportSingle()">💾 Export Selected</button>
+      </div>
+
+      <div class="sheet-preview">
+        <h3>📋 Full Sprite Sheet Preview</h3>
+        <canvas id="sheetCanvas"></canvas>
+      </div>
+
+      <div class="info-box">
+        <strong>Hướng dẫn:</strong><br>
+        • Click vào sprite để xem preview lớn<br>
+        • "Export Sprite Sheet" → tải toàn bộ sprites 1 file PNG<br>
+        • "Export Selected" → tải sprite đang chọn<br>
+        • Mỗi sprite 32×32 pixels, nền trong suốt<br>
+        • Phong cách: thủy mặc đen trắng
+      </div>
+    </div>
+  </div>
+
+<script>
+// ============================================================
+// PIXEL ART DRAWING ENGINE
+// ============================================================
+
+// Ink wash color palette
+const INK = {
+  black: '#1a1a1a',
+  dark: '#3a3a3a',
+  mid: '#6a6a6a',
+  light: '#9a9a9a',
+  pale: '#c8c8c8',
+  white: '#f0ece4',
+  paper: '#f5f0e8',
+  // Subtle accent colors (very muted)
+  skin: '#d4c4a8',
+  skinDark: '#b8a88c',
+  hatStraw: '#c8b888',
+  hatDark: '#a09068',
+  leafGreen: '#708060',
+  leafDark: '#506040',
+  waterBlue: '#8898a8',
+  roofBrown: '#8b7355',
+  roofDark: '#6b5335',
+  wood: '#7a6a52',
+  woodDark: '#5a4a32',
+};
+
+function createSpriteCanvas(size = 32) {
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  return c;
+}
+
+function px(ctx, x, y, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, 1, 1);
+}
+
+function rect(ctx, x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
+
+function line(ctx, x1, y1, x2, y2, color) {
+  ctx.fillStyle = color;
+  const dx = Math.abs(x2 - x1);
+  const dy = Math.abs(y2 - y1);
+  const sx = x1 < x2 ? 1 : -1;
+  const sy = y1 < y2 ? 1 : -1;
+  let err = dx - dy;
+  while (true) {
+    ctx.fillRect(x1, y1, 1, 1);
+    if (x1 === x2 && y1 === y2) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; x1 += sx; }
+    if (e2 < dx) { err += dx; y1 += sy; }
+  }
+}
+
+// ============================================================
+// CHARACTER SPRITES
+// ============================================================
+
+function drawFarmerDetailed(ctx, mode = 0) {
+  const rect = (x, y, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); };
+  const px = (x, y, col) => { ctx.fillStyle = col; ctx.fillRect(x, y, 1, 1); };
+
+  const C = {
+    hatOutline: '#5c4625',
+    hatBase: '#d4b779',
+    hatLight: '#ebd7a0',
+    hatShadow: '#a6854b',
+    strap: '#7a2818',
+    hair: '#1a181b',
+    skin: '#fce4c8',
+    skinShadow: '#d9b691',
+    skinBlush: '#f2a79d',
+    eye: '#1c1917',
+    eyeSparkle: '#ffffff',
+    shirtBase: '#6b4c35',
+    shirtLight: '#8a6549',
+    shirtShadow: '#4a3322',
+    shirtButton: '#f0e6d2',
+    scarfBase: '#4a5b6c',
+    scarfLight: '#8ea2b5',
+    pantsBase: '#252528',
+    pantsLight: '#3d3d42',
+    pantsShadow: '#151518',
+    toolWood: '#805933',
+    toolMetal: '#a8b2ba',
+    toolMetalLight: '#d6dfe6'
+  };
+
+  let bobY = 0;
+  if (mode === 1) bobY = -1;
+  else if (mode === 3) bobY = -3;
+  else if (mode === 4) bobY = 1;
+  else if (mode === 5) bobY = 2;
+
+  const originY = 2 + bobY;
+
+  if (mode !== 5) {
+    px(15, originY, C.hatOutline);
+    px(16, originY, C.hatOutline);
+    px(15, originY + 1, C.hatLight);
+    px(16, originY + 1, C.hatBase);
+
+    const hatLayers = [
+      { w: 6, off: 13, y: originY + 2 },
+      { w: 10, off: 11, y: originY + 3 },
+      { w: 14, off: 9, y: originY + 4 },
+      { w: 18, off: 7, y: originY + 5 },
+      { w: 22, off: 5, y: originY + 6 },
+      { w: 24, off: 4, y: originY + 7 }
+    ];
+
+    for (let i = 0; i < hatLayers.length; i++) {
+      const l = hatLayers[i];
+      rect(l.off, l.y, l.w, 1, C.hatBase);
+      rect(l.off + 1, l.y, Math.floor(l.w / 2) - 1, 1, C.hatLight);
+      rect(l.off + Math.floor(l.w / 2) + 1, l.y, Math.floor(l.w / 2) - 2, 1, C.hatShadow);
+      px(l.off, l.y, C.hatOutline);
+      px(l.off + l.w - 1, l.y, C.hatOutline);
+    }
+    rect(4, originY + 8, 24, 1, C.hatOutline);
+    rect(5, originY + 8, 10, 1, C.hatLight);
+
+    px(11, originY + 9, C.strap);
+    px(12, originY + 10, C.strap);
+    px(19, originY + 9, C.strap);
+    px(18, originY + 10, C.strap);
+    rect(14, originY + 13, 3, 1, C.strap);
+  } else {
+    px(14, originY + 2, C.hatOutline);
+    for (let i = 0; i < 6; i++) {
+      rect(13 - i * 2, originY + 3 + i, 4 + i * 4, 1, C.hatBase);
+      px(13 - i * 2, originY + 3 + i, C.hatLight);
+    }
+  }
+
+  const headY = originY + 9;
+  rect(11, headY, 10, 2, C.hair);
+  px(10, headY + 1, C.hair);
+  px(21, headY + 1, C.hair);
+  px(13, headY + 2, C.hair);
+  px(17, headY + 2, C.hair);
+
+  rect(11, headY + 2, 10, 6, C.skin);
+  rect(12, headY + 8, 8, 1, C.skinShadow);
+
+  rect(12, headY + 3, 2, 3, C.eye);
+  px(12, headY + 3, C.eyeSparkle);
+  rect(17, headY + 3, 2, 3, C.eye);
+  px(17, headY + 3, C.eyeSparkle);
+
+  rect(11, headY + 5, 2, 1, C.skinBlush);
+  rect(18, headY + 5, 2, 1, C.skinBlush);
+  px(15, headY + 6, C.skinShadow);
+  px(16, headY + 6, C.skinShadow);
+  px(10, headY + 4, C.skinShadow);
+  px(21, headY + 4, C.skinShadow);
+
+  const bodyY = headY + 8;
+  rect(11, bodyY, 10, 2, C.scarfBase);
+  px(12, bodyY, C.scarfLight);
+  px(15, bodyY, C.scarfLight);
+  px(18, bodyY, C.scarfLight);
+  rect(18, bodyY + 2, 2, 4, C.scarfBase);
+  px(18, bodyY + 3, C.scarfLight);
+
+  rect(11, bodyY + 2, 9, 6, C.shirtBase);
+  rect(11, bodyY + 2, 2, 6, C.shirtLight);
+  rect(18, bodyY + 2, 2, 6, C.shirtShadow);
+
+  px(15, bodyY + 3, C.shirtButton);
+  px(15, bodyY + 5, C.shirtButton);
+  px(15, bodyY + 7, C.shirtButton);
+  rect(11, bodyY + 8, 9, 1, C.shirtShadow);
+
+  const legY = bodyY + 9;
+
+  if (mode === 0) {
+    rect(9, bodyY + 3, 2, 5, C.skin);
+    rect(20, bodyY + 3, 2, 5, C.skin);
+    rect(12, legY, 3, 5, C.pantsBase);
+    rect(16, legY, 3, 5, C.pantsBase);
+    rect(12, legY, 1, 5, C.pantsLight);
+    rect(12, legY + 5, 3, 2, C.skin);
+    rect(16, legY + 5, 3, 2, C.skin);
+  } else if (mode === 1) {
+    rect(8, bodyY + 2, 3, 5, C.skin);
+    rect(20, bodyY + 4, 3, 4, C.skin);
+    rect(10, legY, 4, 4, C.pantsBase);
+    rect(17, legY, 4, 4, C.pantsBase);
+    rect(9, legY + 4, 4, 2, C.skin);
+    rect(18, legY + 4, 4, 2, C.skin);
+  } else if (mode === 2) {
+    rect(9, bodyY + 4, 3, 4, C.skin);
+    rect(20, bodyY + 2, 3, 5, C.skin);
+    rect(16, legY, 4, 4, C.pantsBase);
+    rect(11, legY, 4, 4, C.pantsBase);
+    rect(17, legY + 4, 4, 2, C.skin);
+    rect(10, legY + 4, 4, 2, C.skin);
+  } else if (mode === 3) {
+    rect(8, bodyY, 3, 4, C.skin);
+    rect(20, bodyY, 3, 4, C.skin);
+    rect(11, legY - 1, 4, 4, C.pantsBase);
+    rect(16, legY - 1, 4, 4, C.pantsBase);
+    rect(10, legY + 3, 3, 2, C.skin);
+    rect(17, legY + 3, 3, 2, C.skin);
+  } else if (mode === 4) {
+    rect(8, bodyY + 2, 4, 3, C.skin);
+    rect(16, bodyY + 3, 4, 3, C.skin);
+    ctx.strokeStyle = C.toolWood;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(9, bodyY + 3); ctx.lineTo(26, bodyY - 7); ctx.stroke();
+    rect(24, bodyY - 9, 6, 4, C.toolMetal);
+    rect(25, bodyY - 9, 5, 1, C.toolMetalLight);
+    px(29, bodyY - 6, C.toolMetalLight);
+    rect(11, legY, 4, 5, C.pantsBase);
+    rect(16, legY, 4, 5, C.pantsBase);
+    rect(11, legY + 5, 4, 2, C.skin);
+    rect(16, legY + 5, 4, 2, C.skin);
+  } else if (mode === 5) {
+    rect(17, bodyY + 3, 3, 3, C.skin);
+    ctx.strokeStyle = C.toolWood;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(18, bodyY + 4); ctx.lineTo(29, bodyY - 10); ctx.stroke();
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(29, bodyY - 10); ctx.lineTo(29, bodyY + 12); ctx.stroke();
+    px(28, bodyY + 8, '#f44');
+    px(28, bodyY + 9, '#fff');
+    rect(11, legY - 1, 9, 4, C.pantsBase);
+    rect(12, legY + 3, 3, 4, C.skin);
+    rect(17, legY + 3, 3, 4, C.skin);
+  }
+}
+
+function drawFarmerIdle(ctx) { drawFarmerDetailed(ctx, 0); }
+function drawFarmerWalk1(ctx) { drawFarmerDetailed(ctx, 1); }
+function drawFarmerWalk2(ctx) { drawFarmerDetailed(ctx, 2); }
+function drawFarmerJump(ctx) { drawFarmerDetailed(ctx, 3); }
+function drawFarmerHoe(ctx) { drawFarmerDetailed(ctx, 4); }
+function drawFarmerFish(ctx) { drawFarmerDetailed(ctx, 5); }
+
+// ============================================================
+// NPC SPRITES
+// ============================================================
+
+function drawGrandma(ctx) {
+  // Hair bun
+  rect(ctx, 14, 5, 4, 3, INK.light);
+  rect(ctx, 15, 4, 2, 1, INK.light);
+  // Head
+  rect(ctx, 13, 8, 6, 5, INK.skin);
+  px(ctx, 14, 10, INK.black); px(ctx, 17, 10, INK.black); // eyes (squinting)
+  px(ctx, 15, 11, INK.mid); px(ctx, 16, 11, INK.mid); // smile
+  // Wrinkles
+  px(ctx, 13, 10, INK.skinDark); px(ctx, 18, 10, INK.skinDark);
+  // Body (áo bà ba)
+  rect(ctx, 12, 13, 8, 7, INK.pale);
+  rect(ctx, 12, 13, 1, 7, INK.light);
+  rect(ctx, 19, 13, 1, 7, INK.light);
+  px(ctx, 16, 14, INK.mid); px(ctx, 16, 15, INK.mid); px(ctx, 16, 16, INK.mid);
+  // Arms holding basket
+  rect(ctx, 10, 14, 2, 4, INK.skin);
+  rect(ctx, 20, 14, 2, 4, INK.skin);
+  // Basket
+  rect(ctx, 20, 15, 6, 4, INK.wood);
+  rect(ctx, 21, 14, 4, 1, INK.woodDark); // rim
+  rect(ctx, 21, 15, 1, 3, INK.leafGreen); // fruit
+  rect(ctx, 23, 15, 1, 2, '#c88844'); // fruit 2
+  // Pants
+  rect(ctx, 13, 20, 3, 4, INK.mid);
+  rect(ctx, 16, 20, 3, 4, INK.mid);
+  // Feet
+  rect(ctx, 13, 24, 3, 2, INK.dark);
+  rect(ctx, 16, 24, 3, 2, INK.dark);
+}
+
+function drawElder(ctx) {
+  // Khăn đóng (headwrap)
+  rect(ctx, 13, 5, 6, 3, INK.dark);
+  rect(ctx, 14, 4, 4, 1, INK.dark);
+  // Head
+  rect(ctx, 13, 8, 6, 5, INK.skin);
+  px(ctx, 14, 10, INK.black); px(ctx, 17, 10, INK.black);
+  // Beard
+  rect(ctx, 14, 13, 4, 3, INK.white);
+  rect(ctx, 15, 16, 2, 2, INK.pale);
+  // Body (áo dài style)
+  rect(ctx, 12, 13, 8, 8, INK.mid);
+  rect(ctx, 12, 13, 1, 8, INK.dark);
+  rect(ctx, 19, 13, 1, 8, INK.dark);
+  // Inner robe
+  rect(ctx, 15, 14, 2, 7, INK.light);
+  // Arms behind back
+  rect(ctx, 11, 15, 1, 3, INK.skin);
+  rect(ctx, 20, 15, 1, 3, INK.skin);
+  // Walking stick
+  rect(ctx, 21, 12, 1, 16, INK.wood);
+  px(ctx, 21, 11, INK.woodDark);
+  // Legs
+  rect(ctx, 13, 21, 3, 4, INK.dark);
+  rect(ctx, 16, 21, 3, 4, INK.dark);
+  // Feet
+  rect(ctx, 13, 25, 3, 2, INK.black);
+  rect(ctx, 16, 25, 3, 2, INK.black);
+}
+
+function drawMarketGirl(ctx) {
+  // Hair with braids
+  rect(ctx, 13, 5, 6, 2, INK.dark);
+  rect(ctx, 12, 7, 2, 4, INK.dark); // left braid
+  rect(ctx, 18, 7, 2, 4, INK.dark); // right braid
+  px(ctx, 12, 11, INK.mid); px(ctx, 19, 11, INK.mid); // braid ties
+  // Head
+  rect(ctx, 13, 7, 6, 5, INK.skin);
+  px(ctx, 14, 9, INK.black); px(ctx, 17, 9, INK.black); // eyes
+  px(ctx, 15, 10, INK.mid); // nose
+  px(ctx, 15, 11, '#c88'); px(ctx, 16, 11, '#c88'); // smile
+  // Body (áo bà ba floral)
+  rect(ctx, 12, 12, 8, 7, INK.pale);
+  px(ctx, 13, 13, INK.light); px(ctx, 15, 14, INK.light);
+  px(ctx, 17, 13, INK.light); px(ctx, 14, 16, INK.light); // floral dots
+  // Arms
+  rect(ctx, 10, 13, 2, 4, INK.skin);
+  rect(ctx, 20, 13, 2, 4, INK.skin);
+  // Holding fruit
+  rect(ctx, 20, 14, 3, 3, '#c88844');
+  // Skirt
+  rect(ctx, 12, 19, 8, 4, INK.mid);
+  // Legs
+  rect(ctx, 13, 23, 2, 3, INK.skin);
+  rect(ctx, 17, 23, 2, 3, INK.skin);
+  // Sandals
+  rect(ctx, 13, 26, 2, 2, INK.dark);
+  rect(ctx, 17, 26, 2, 2, INK.dark);
+}
+
+// ============================================================
+// ANIMAL SPRITES
+// ============================================================
+
+function drawBuffalo(ctx) {
+  // Body (larger, uses more space)
+  rect(ctx, 4, 14, 20, 10, INK.dark);
+  rect(ctx, 5, 13, 18, 1, INK.mid); // back highlight
+  // Head
+  rect(ctx, 22, 11, 7, 8, INK.dark);
+  rect(ctx, 23, 10, 5, 1, INK.mid); // forehead
+  // Horns
+  line(ctx, 24, 9, 22, 6, INK.black);
+  line(ctx, 27, 9, 29, 6, INK.black);
+  // Eye
+  px(ctx, 25, 13, INK.white); px(ctx, 26, 13, INK.black);
+  // Nose
+  px(ctx, 27, 16, INK.mid); px(ctx, 28, 16, INK.mid);
+  // Legs
+  rect(ctx, 6, 24, 3, 5, INK.black);
+  rect(ctx, 12, 24, 3, 5, INK.black);
+  rect(ctx, 17, 24, 3, 5, INK.black);
+  rect(ctx, 22, 24, 3, 5, INK.black);
+  // Tail
+  line(ctx, 4, 15, 1, 18, INK.black);
+  px(ctx, 0, 19, INK.mid); px(ctx, 1, 19, INK.mid);
+  // Hooves
+  rect(ctx, 6, 29, 3, 1, INK.mid);
+  rect(ctx, 12, 29, 3, 1, INK.mid);
+  rect(ctx, 17, 29, 3, 1, INK.mid);
+  rect(ctx, 22, 29, 3, 1, INK.mid);
+}
+
+function drawChicken(ctx) {
+  // Body
+  rect(ctx, 10, 18, 10, 7, INK.pale);
+  rect(ctx, 11, 17, 8, 1, INK.light);
+  // Head
+  rect(ctx, 19, 14, 5, 5, INK.pale);
+  // Comb
+  rect(ctx, 20, 12, 3, 2, '#b44');
+  px(ctx, 21, 11, '#b44');
+  // Eye
+  px(ctx, 21, 15, INK.black);
+  // Beak
+  rect(ctx, 24, 16, 2, 2, '#ca8');
+  // Wing
+  rect(ctx, 12, 19, 5, 4, INK.light);
+  // Tail feathers
+  rect(ctx, 8, 15, 3, 4, INK.mid);
+  rect(ctx, 7, 14, 2, 3, INK.dark);
+  // Legs
+  rect(ctx, 13, 25, 1, 3, '#ca8');
+  rect(ctx, 17, 25, 1, 3, '#ca8');
+  // Feet
+  rect(ctx, 12, 28, 3, 1, '#ca8');
+  rect(ctx, 16, 28, 3, 1, '#ca8');
+}
+
+function drawDuck(ctx) {
+  // Body
+  rect(ctx, 9, 19, 11, 6, INK.white);
+  rect(ctx, 10, 18, 9, 1, INK.pale);
+  // Head
+  rect(ctx, 19, 14, 5, 6, INK.white);
+  // Eye
+  px(ctx, 21, 16, INK.black);
+  // Bill
+  rect(ctx, 24, 17, 3, 2, '#ca4');
+  px(ctx, 24, 17, '#da5');
+  // Wing
+  rect(ctx, 11, 20, 6, 3, INK.pale);
+  // Tail
+  rect(ctx, 7, 18, 3, 2, INK.pale);
+  px(ctx, 6, 17, INK.light);
+  // Legs
+  rect(ctx, 12, 25, 1, 3, '#ca4');
+  rect(ctx, 17, 25, 1, 3, '#ca4');
+  // Feet (webbed)
+  rect(ctx, 11, 28, 3, 1, '#ca4');
+  rect(ctx, 16, 28, 3, 1, '#ca4');
+}
+
+function drawFish(ctx) {
+  // Body
+  rect(ctx, 8, 13, 16, 6, INK.light);
+  rect(ctx, 10, 12, 12, 1, INK.pale);
+  rect(ctx, 10, 19, 12, 1, INK.pale);
+  // Head
+  rect(ctx, 22, 14, 3, 4, INK.mid);
+  // Eye
+  px(ctx, 23, 15, INK.black);
+  // Mouth
+  px(ctx, 25, 16, INK.dark);
+  // Tail fin
+  rect(ctx, 4, 11, 4, 3, INK.mid);
+  rect(ctx, 4, 18, 4, 3, INK.mid);
+  rect(ctx, 5, 14, 3, 4, INK.mid);
+  // Dorsal fin
+  rect(ctx, 14, 10, 4, 3, INK.mid);
+  // Scales pattern
+  px(ctx, 12, 15, INK.pale); px(ctx, 14, 14, INK.pale);
+  px(ctx, 16, 16, INK.pale); px(ctx, 18, 15, INK.pale);
+}
+
+// ============================================================
+// TILE & OBJECT SPRITES
+// ============================================================
+
+function drawGrassTile(ctx) {
+  // Dirt base
+  rect(ctx, 0, 8, 32, 24, '#8b7355');
+  rect(ctx, 0, 12, 32, 20, '#7a6245');
+  // Grass top
+  rect(ctx, 0, 4, 32, 6, INK.leafGreen);
+  rect(ctx, 0, 3, 32, 2, INK.leafDark);
+  // Grass blades
+  for (let i = 0; i < 8; i++) {
+    px(ctx, i * 4 + 1, 2, INK.leafGreen);
+    px(ctx, i * 4 + 2, 1, INK.leafDark);
+  }
+  // Dirt texture
+  px(ctx, 5, 14, '#6b5235'); px(ctx, 15, 18, '#6b5235');
+  px(ctx, 22, 12, '#9b8365'); px(ctx, 8, 22, '#6b5235');
+  px(ctx, 28, 20, '#9b8365');
+}
+
+function drawDirtTile(ctx) {
+  rect(ctx, 0, 0, 32, 32, '#8b7355');
+  // Texture
+  for (let i = 0; i < 12; i++) {
+    const x = Math.floor(Math.random() * 30) + 1;
+    const y = Math.floor(Math.random() * 30) + 1;
+    px(ctx, x, y, i % 2 === 0 ? '#6b5235' : '#9b8365');
+  }
+  px(ctx, 3, 5, '#7a6245'); px(ctx, 12, 8, '#9b8365');
+  px(ctx, 20, 15, '#6b5235'); px(ctx, 7, 22, '#7a6245');
+  px(ctx, 25, 25, '#9b8365'); px(ctx, 15, 28, '#6b5235');
+}
+
+function drawWaterTile(ctx) {
+  rect(ctx, 0, 0, 32, 32, INK.waterBlue);
+  // Wave highlights
+  for (let y = 0; y < 32; y += 6) {
+    for (let x = (y % 12 === 0 ? 0 : 3); x < 32; x += 8) {
+      rect(ctx, x, y, 4, 1, '#98a8b8');
+      px(ctx, x + 1, y + 1, '#7888a0');
+    }
+  }
+}
+
+function drawVietHouse(ctx) {
+  // Main wall
+  rect(ctx, 4, 14, 24, 14, INK.pale);
+  rect(ctx, 4, 14, 1, 14, INK.light);
+  rect(ctx, 27, 14, 1, 14, INK.light);
+  // Roof (ngói - flat side view!)
+  rect(ctx, 2, 8, 28, 7, INK.roofBrown);
+  rect(ctx, 1, 8, 30, 1, INK.roofDark); // eave
+  rect(ctx, 3, 7, 26, 1, INK.roofDark);
+  rect(ctx, 5, 6, 22, 1, INK.roofBrown);
+  rect(ctx, 7, 5, 18, 1, INK.roofDark);
+  // Roof tile lines
+  for (let y = 9; y < 15; y += 2) {
+    for (let x = 3; x < 29; x += 4) {
+      px(ctx, x, y, INK.roofDark);
+    }
+  }
+  // Door
+  rect(ctx, 13, 20, 6, 8, INK.wood);
+  rect(ctx, 13, 20, 6, 1, INK.woodDark);
+  px(ctx, 17, 24, '#ca8'); // handle
+  // Windows
+  rect(ctx, 6, 18, 4, 4, INK.waterBlue);
+  rect(ctx, 6, 18, 4, 1, INK.woodDark);
+  rect(ctx, 22, 18, 4, 4, INK.waterBlue);
+  rect(ctx, 22, 18, 4, 1, INK.woodDark);
+  // Window cross
+  px(ctx, 8, 19, INK.woodDark); px(ctx, 8, 20, INK.woodDark);
+  px(ctx, 7, 20, INK.woodDark); px(ctx, 9, 20, INK.woodDark);
+  px(ctx, 24, 19, INK.woodDark); px(ctx, 24, 20, INK.woodDark);
+  px(ctx, 23, 20, INK.woodDark); px(ctx, 25, 20, INK.woodDark);
+}
+
+function drawBamboo(ctx) {
+  // Trunk
+  rect(ctx, 14, 4, 3, 28, INK.leafGreen);
+  rect(ctx, 14, 4, 1, 28, INK.leafDark);
+  // Segments
+  for (let y = 6; y < 30; y += 5) {
+    rect(ctx, 13, y, 5, 1, INK.leafDark);
+  }
+  // Leaves
+  rect(ctx, 6, 2, 5, 2, INK.leafGreen);
+  rect(ctx, 4, 1, 4, 1, INK.leafDark);
+  rect(ctx, 19, 3, 6, 2, INK.leafGreen);
+  rect(ctx, 21, 1, 5, 2, INK.leafDark);
+  rect(ctx, 8, 7, 5, 1, INK.leafGreen);
+  rect(ctx, 20, 8, 5, 1, INK.leafGreen);
+  rect(ctx, 5, 12, 6, 1, INK.leafGreen);
+  rect(ctx, 21, 13, 6, 1, INK.leafDark);
+}
+
+function drawBananaTree(ctx) {
+  // Trunk
+  rect(ctx, 14, 12, 4, 20, INK.leafGreen);
+  rect(ctx, 14, 12, 1, 20, INK.leafDark);
+  // Big leaves
+  rect(ctx, 3, 4, 12, 3, INK.leafGreen);
+  rect(ctx, 2, 3, 10, 1, INK.leafDark);
+  rect(ctx, 17, 2, 12, 3, INK.leafGreen);
+  rect(ctx, 19, 1, 10, 1, INK.leafDark);
+  rect(ctx, 5, 8, 10, 2, INK.leafGreen);
+  rect(ctx, 18, 7, 10, 2, INK.leafGreen);
+  // Leaf veins
+  line(ctx, 4, 5, 14, 5, INK.leafDark);
+  line(ctx, 18, 3, 28, 3, INK.leafDark);
+  // Banana bunch
+  rect(ctx, 10, 11, 4, 3, '#ca8');
+  px(ctx, 10, 11, '#da5'); px(ctx, 13, 11, '#da5');
+}
+
+function drawRicePaddy(ctx) {
+  // Water base
+  rect(ctx, 0, 16, 32, 16, INK.waterBlue);
+  // Mud border
+  rect(ctx, 0, 14, 32, 3, '#7a6245');
+  // Rice stalks
+  for (let x = 2; x < 30; x += 4) {
+    rect(ctx, x, 6, 1, 12, INK.leafGreen);
+    rect(ctx, x + 1, 4, 1, 10, INK.leafDark);
+    // Rice grains at top
+    px(ctx, x - 1, 5, '#ca8');
+    px(ctx, x + 2, 3, '#da8');
+    px(ctx, x, 4, '#ca8');
+  }
+  // Water ripples
+  px(ctx, 5, 20, '#98a8b8'); px(ctx, 15, 22, '#98a8b8');
+  px(ctx, 25, 19, '#98a8b8');
+}
+
+function drawLantern(ctx) {
+  // Wire
+  rect(ctx, 15, 2, 1, 5, INK.dark);
+  // Lantern body
+  rect(ctx, 11, 7, 9, 12, '#c44');
+  rect(ctx, 12, 6, 7, 1, '#a33');
+  rect(ctx, 12, 19, 7, 1, '#a33');
+  // Frame
+  rect(ctx, 11, 7, 1, 12, INK.wood);
+  rect(ctx, 19, 7, 1, 12, INK.wood);
+  // Light glow
+  rect(ctx, 13, 9, 5, 8, '#d55');
+  px(ctx, 15, 11, '#f88'); px(ctx, 15, 12, '#f88');
+  // Tassel
+  rect(ctx, 15, 20, 1, 4, '#c44');
+  px(ctx, 14, 24, '#a33'); px(ctx, 15, 24, '#a33'); px(ctx, 16, 24, '#a33');
+}
+
+// ============================================================
+// SPRITE REGISTRY & UI
+// ============================================================
+
+const allSprites = [];
+
+function registerSprite(name, category, drawFn, size = 32) {
+  const canvas = createSpriteCanvas(size);
+  const ctx = canvas.getContext('2d');
+  drawFn(ctx);
+  allSprites.push({ name, category, canvas, drawFn, size });
+  return canvas;
+}
+
+// Register all sprites
+function initSprites() {
+  // Farmer
+  registerSprite('Farmer Idle', 'farmer', drawFarmerIdle);
+  registerSprite('Farmer Walk 1', 'farmer', drawFarmerWalk1);
+  registerSprite('Farmer Walk 2', 'farmer', drawFarmerWalk2);
+  registerSprite('Farmer Jump', 'farmer', drawFarmerJump);
+  registerSprite('Farmer Hoe', 'farmer', drawFarmerHoe);
+  registerSprite('Farmer Fish', 'farmer', drawFarmerFish);
+
+  // NPCs
+  registerSprite('Bà Ngoại', 'npc', drawGrandma);
+  registerSprite('Ông Trưởng', 'npc', drawElder);
+  registerSprite('Cô Bán Hàng', 'npc', drawMarketGirl);
+
+  // Animals
+  registerSprite('Trâu', 'animal', drawBuffalo);
+  registerSprite('Gà', 'animal', drawChicken);
+  registerSprite('Vịt', 'animal', drawDuck);
+  registerSprite('Cá', 'animal', drawFish);
+
+  // Tiles
+  registerSprite('Đất Cỏ', 'tile', drawGrassTile);
+  registerSprite('Đất', 'tile', drawDirtTile);
+  registerSprite('Nước', 'tile', drawWaterTile);
+  registerSprite('Nhà Ngói', 'tile', drawVietHouse);
+  registerSprite('Tre', 'tile', drawBamboo);
+  registerSprite('Chuối', 'tile', drawBananaTree);
+  registerSprite('Ruộng Lúa', 'tile', drawRicePaddy);
+  registerSprite('Đèn Lồng', 'tile', drawLantern);
+}
+
+let selectedIndex = 0;
+
+function renderUI() {
+  const grids = {
+    farmer: document.getElementById('farmerGrid'),
+    npc: document.getElementById('npcGrid'),
+    animal: document.getElementById('animalGrid'),
+    tile: document.getElementById('tileGrid'),
+  };
+
+  Object.values(grids).forEach(g => g.innerHTML = '');
+
+  allSprites.forEach((sprite, idx) => {
+    const card = document.createElement('div');
+    card.className = 'sprite-card' + (idx === selectedIndex ? ' selected' : '');
+    card.onclick = () => { selectedIndex = idx; renderUI(); updatePreview(); };
+
+    const displayCanvas = document.createElement('canvas');
+    displayCanvas.width = 96;
+    displayCanvas.height = 96;
+    const dCtx = displayCanvas.getContext('2d');
+    dCtx.imageSmoothingEnabled = false;
+    dCtx.fillStyle = INK.paper;
+    dCtx.fillRect(0, 0, 96, 96);
+    dCtx.drawImage(sprite.canvas, 0, 0, 32, 32, 0, 0, 96, 96);
+
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = sprite.name;
+
+    card.appendChild(displayCanvas);
+    card.appendChild(label);
+    grids[sprite.category].appendChild(card);
+  });
+
+  updateSheetPreview();
+}
+
+function updatePreview() {
+  const sprite = allSprites[selectedIndex];
+  const preview = document.getElementById('previewCanvas');
+  const pCtx = preview.getContext('2d');
+  pCtx.imageSmoothingEnabled = false;
+  pCtx.fillStyle = INK.paper;
+  pCtx.fillRect(0, 0, 256, 256);
+  pCtx.drawImage(sprite.canvas, 0, 0, 32, 32, 0, 0, 256, 256);
+
+  // Draw grid
+  pCtx.strokeStyle = 'rgba(0,0,0,0.1)';
+  pCtx.lineWidth = 0.5;
+  for (let i = 0; i < 32; i++) {
+    pCtx.beginPath(); pCtx.moveTo(i * 8, 0); pCtx.lineTo(i * 8, 256); pCtx.stroke();
+    pCtx.beginPath(); pCtx.moveTo(0, i * 8); pCtx.lineTo(256, i * 8); pCtx.stroke();
+  }
+}
+
+// Animation
+let animFrame = 0;
+function animate() {
+  const animCanvas = document.getElementById('animCanvas');
+  const aCtx = animCanvas.getContext('2d');
+  aCtx.imageSmoothingEnabled = false;
+
+  // Find walk frames for farmer
+  const walkFrames = allSprites.filter(s => s.name.startsWith('Farmer'));
+  if (walkFrames.length > 0) {
+    const frame = walkFrames[animFrame % walkFrames.length];
+    aCtx.fillStyle = INK.paper;
+    aCtx.fillRect(0, 0, 128, 128);
+    aCtx.drawImage(frame.canvas, 0, 0, 32, 32, 0, 0, 128, 128);
+  }
+  animFrame++;
+  setTimeout(() => requestAnimationFrame(animate), 300);
+}
+
+function updateSheetPreview() {
+  const cols = 8;
+  const rows = Math.ceil(allSprites.length / cols);
+  const sheet = document.getElementById('sheetCanvas');
+  sheet.width = cols * 32 * 3;
+  sheet.height = rows * 32 * 3;
+  const sCtx = sheet.getContext('2d');
+  sCtx.imageSmoothingEnabled = false;
+  sCtx.fillStyle = INK.paper;
+  sCtx.fillRect(0, 0, sheet.width, sheet.height);
+
+  allSprites.forEach((sprite, idx) => {
+    const x = (idx % cols) * 32 * 3;
+    const y = Math.floor(idx / cols) * 32 * 3;
+    sCtx.drawImage(sprite.canvas, 0, 0, 32, 32, x, y, 32 * 3, 32 * 3);
+    sCtx.strokeStyle = 'rgba(0,0,0,0.15)';
+    sCtx.strokeRect(x, y, 32 * 3, 32 * 3);
+  });
+}
+
+function exportSpriteSheet() {
+  const cols = 8;
+  const rows = Math.ceil(allSprites.length / cols);
+  const sheet = document.createElement('canvas');
+  sheet.width = cols * 32;
+  sheet.height = rows * 32;
+  const sCtx = sheet.getContext('2d');
+
+  allSprites.forEach((sprite, idx) => {
+    const x = (idx % cols) * 32;
+    const y = Math.floor(idx / cols) * 32;
+    sCtx.drawImage(sprite.canvas, x, y);
+  });
+
+  const link = document.createElement('a');
+  link.download = 'lang-que-viet-sprites.png';
+  link.href = sheet.toDataURL('image/png');
+  link.click();
+}
+
+function exportSingle() {
+  const sprite = allSprites[selectedIndex];
+  const link = document.createElement('a');
+  link.download = `${sprite.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+  link.href = sprite.canvas.toDataURL('image/png');
+  link.click();
+}
+
+// Init
+initSprites();
+renderUI();
+updatePreview();
+animate();
+</script>
+</body>
+</html>
