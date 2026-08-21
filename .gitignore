@@ -14,6 +14,8 @@ cầm thùng nước/
 cam-cuoc/
 temp_*/
 scratch/
+ezgif-*/
+*.py
 
 # Binary media raw files
 *.mp4

@@ -1,5 +1,6 @@
 import { CharacterAnimator } from '../graphics/renderers/CharacterAnimator';
 import { SoundManager } from '../core/SoundManager';
+import { GroundPlatform } from '../graphics/plants/GroundPlatform';
 
 export class Player {
   public x: number = 240;
@@ -11,10 +12,10 @@ export class Player {
   public isGrounded: boolean = false;
   public facing: number = 1; // 1: phải, -1: trái
   public state: 'idle' | 'walk' | 'jump' | 'hoe' | 'cam_cuoc' | 'cam_thung_nuoc' | 'cam_liem' | 'harvest' | 'water' | 'fish' = 'idle';
-  public activeTool: 'none' | 'hoe' | 'water' | 'sickle' = 'none'; // Dụng cụ đang chọn
+  public activeTool: 'none' | 'hoe' | 'water' | 'sickle' = 'none';
   public animTimer: number = 0;
   public speed: number = 190;
-  public jumpForce: number = -460;
+  public jumpForce: number = -380;
   public actionTimer: number = 0;
 
   // RPG & Farming Stats
@@ -30,11 +31,8 @@ export class Player {
   constructor(x: number, y: number) {
     this.x = x;
     this.y = y;
-    this.animator = new CharacterAnimator(110); // Kích thước chibi 110px vừa vặn 1 khung hình cảnh
+    this.animator = new CharacterAnimator(110);
 
-    // ============================================================
-    // ĐĂNG KÝ CÁC BỘ HOẠT ẢNH TỪ THƯ MỤC CHUẨN (/assets/characters/player/)
-    // ============================================================
     this.animator.registerClip('walk', {
       src: '/assets/characters/player/walk.png',
       frames: 10,
@@ -52,111 +50,93 @@ export class Player {
       src: '/assets/characters/player/cam_cuoc.png',
       frames: 12,
       fps: 8.0,
-      loopMode: 'pingpong' // Hít thở nhẹ nhàng khi đang cầm cuốc
+      loopMode: 'pingpong'
     });
 
     this.animator.registerClip('cam_thung_nuoc', {
       src: '/assets/characters/player/cam_thung_nuoc.png',
       frames: 8,
       fps: 8.0,
-      loopMode: 'pingpong' // Hít thở nhẹ nhàng khi đang xách thùng nước
+      loopMode: 'pingpong'
     });
 
     this.animator.registerClip('cam_liem', {
       src: '/assets/characters/player/cam_liem.png',
       frames: 12,
       fps: 10.0,
-      loopRange: [7, 11] // Chạy 001->012 lần đầu, sau đó lặp vô tận giữa frame 012 và frame 008
+      loopRange: [7, 11]
     });
 
     this.animator.registerClip('harvest', {
       src: '/assets/characters/player/harvest.png',
       frames: 38,
-      fps: 18.0, // 38 frames (frames 22-59 gặt lúa dứt khoát)
-      scaleMultiplier: 1.05, // Cao thêm 5% theo yêu cầu
+      fps: 18.0,
+      scaleMultiplier: 1.05,
+      anchorOffsetX: 29.8,
       loopMode: 'loop'
     });
 
     this.animator.registerClip('hoe', {
       src: '/assets/characters/player/hoe.png',
       frames: 68,
-      fps: 18.0, // 68 frames ở 18 FPS = 3.8s (Cuốc đất + Lau mồ hôi chuẩn scale 1:1)
+      fps: 18.0,
+      anchorOffsetX: -28.0,
       loopMode: 'loop'
     });
 
     this.animator.registerClip('water', {
       src: '/assets/characters/player/water.png',
       frames: 63,
-      fps: 18.0, // 63 frames ở 18 FPS = 3.5s (Hành động tưới nước đồng bộ 100% 380px)
+      fps: 18.0,
+      anchorOffsetX: -18.9,
       loopMode: 'loop'
     });
   }
 
   public selectTool(tool: 'none' | 'hoe' | 'water' | 'sickle'): void {
     if (this.activeTool === tool) {
-      this.activeTool = 'none'; // Bấm lại để cất dụng cụ
+      this.activeTool = 'none';
     } else {
       this.activeTool = tool;
     }
-
-    if (this.actionTimer <= 0 && this.state !== 'walk' && this.state !== 'jump') {
-      if (this.activeTool === 'hoe') this.state = 'cam_cuoc';
-      else if (this.activeTool === 'water') this.state = 'cam_thung_nuoc';
-      else if (this.activeTool === 'sickle') this.state = 'cam_liem';
-      else this.state = 'idle';
-      this.animTimer = 0;
-    }
   }
 
-  /**
-   * Phím Q: Rút -> Đổi -> Cất dụng cụ theo chu kỳ
-   */
-  public cycleTool(): { tool: 'none' | 'hoe' | 'water' | 'sickle'; label: string } {
-    const sequence: ('none' | 'hoe' | 'water' | 'sickle')[] = ['none', 'hoe', 'water', 'sickle'];
-    const currentIdx = sequence.indexOf(this.activeTool);
-    const nextTool = sequence[(currentIdx + 1) % sequence.length];
+  public cycleTool(): { tool: string; label: string } {
+    const order: Array<'none' | 'hoe' | 'water' | 'sickle'> = ['none', 'hoe', 'water', 'sickle'];
+    const currIdx = order.indexOf(this.activeTool);
+    const nextTool = order[(currIdx + 1) % order.length];
     this.activeTool = nextTool;
 
-    if (this.actionTimer <= 0 && this.state !== 'walk' && this.state !== 'jump') {
-      if (this.activeTool === 'hoe') this.state = 'cam_cuoc';
-      else if (this.activeTool === 'water') this.state = 'cam_thung_nuoc';
-      else if (this.activeTool === 'sickle') this.state = 'cam_liem';
-      else this.state = 'idle';
-      this.animTimer = 0;
+    if (nextTool === 'hoe') {
+      return { tool: 'hoe', label: '⛏️ Đã trang bị: Cuốc Đất (Ấn E để xới đất & lau mồ hôi)' };
+    } else if (nextTool === 'water') {
+      return { tool: 'water', label: '💧 Đã trang bị: Thùng Tưới Nước (Ấn E để tưới cây)' };
+    } else if (nextTool === 'sickle') {
+      return { tool: 'sickle', label: '🌾 Đã trang bị: Liềm Cắt Lúa (Ấn E để thu hoạch)' };
+    } else {
+      return { tool: 'none', label: '🌿 Đã cất toàn bộ dụng cụ (Tay không thoải mái)' };
     }
-
-    const labels: Record<'none' | 'hoe' | 'water' | 'sickle', string> = {
-      none: '🌿 Đã cất dụng cụ (Đứng yên tay không)',
-      hoe: '⛏️ Đã rút: Cuốc Đất (Ấn E để cuốc)',
-      water: '💧 Đã rút: Thùng Nước (Ấn E để tưới)',
-      sickle: '🌾 Đã rút: Liềm Cắt Lúa (Ấn E để thu hoạch)'
-    };
-
-    return { tool: this.activeTool, label: labels[this.activeTool] };
   }
 
-  /**
-   * Phím E: Tiến hành dùng dụng cụ đang cầm
-   */
   public useTool(sound: SoundManager): { success: boolean; msg: string } {
     if (this.actionTimer > 0) return { success: false, msg: 'Đang thực hiện hành động...' };
     if (!this.isGrounded) return { success: false, msg: 'Không thể dùng dụng cụ khi đang nhảy!' };
 
     if (this.activeTool === 'hoe') {
       this.state = 'hoe';
-      this.actionTimer = 3.8; // 68 frames cuốc đất & lau mồ hôi
+      this.actionTimer = 3.8;
       this.animTimer = 0;
       sound.playWhack();
       return { success: true, msg: '💥 Đang cuốc đất & lau mồ hôi...' };
     } else if (this.activeTool === 'water') {
       this.state = 'water';
-      this.actionTimer = 3.5; // 63 frames tưới nước
+      this.actionTimer = 3.5;
       this.animTimer = 0;
       sound.playWhack();
       return { success: true, msg: '🌊 Đang tưới nước cho cây trồng...' };
     } else if (this.activeTool === 'sickle') {
       this.state = 'harvest';
-      this.actionTimer = 2.16; // 39 frames thu hoạch
+      this.actionTimer = 2.16;
       this.animTimer = 0;
       sound.playWhack();
       return { success: true, msg: '🌾 Đang cắt lúa & thu hoạch nông sản...' };
@@ -168,11 +148,13 @@ export class Player {
   public update(
     dt: number,
     input: { left: boolean; right: boolean; jump: boolean; hoe?: boolean; water?: boolean; sickle?: boolean; fish?: boolean },
-    groundY: number,
+    baseGroundY: number,
     sound: SoundManager
   ): void {
     this.animTimer += dt;
     if (this.actionTimer > 0) this.actionTimer -= dt;
+
+    const isOnSlopeArea = this.x >= 730 && this.x <= 980;
 
     // 1. Di chuyển ngang
     if (input.left && this.actionTimer <= 0) {
@@ -185,54 +167,44 @@ export class Player {
       this.vx = 0;
     }
 
-    // 2. Nhảy lên
-    if (input.jump && this.isGrounded && this.actionTimer <= 0) {
-      this.vy = this.jumpForce;
-      this.isGrounded = false;
-      sound.playWhack();
+    // 2. Đi lên dốc khi ấn nút Nhảy / Up hoặc đi bộ tiến lên dốc
+    if (input.jump && this.actionTimer <= 0) {
+      if (isOnSlopeArea) {
+        // Khi ở khu vực chân dốc / sườn dốc: Tiến hành đi bước lên dốc thoai thoải
+        this.vx = this.speed * 1.1;
+        this.facing = 1;
+        this.state = 'walk';
+      } else if (this.isGrounded) {
+        // Nhảy nhẹ nhàng
+        this.vy = this.jumpForce;
+        this.isGrounded = false;
+        sound.playWhack();
+      }
     }
 
-    // 3. Các hành động nông trại
-    if (input.hoe && this.actionTimer <= 0 && this.isGrounded) {
-      this.state = 'hoe';
-      this.activeTool = 'hoe';
-      this.actionTimer = 3.8; // Chạy trọn vẹn 68 frames
-      this.animTimer = 0;
-      sound.playWhack();
-    } else if (input.water && this.actionTimer <= 0 && this.isGrounded) {
-      this.state = 'water';
-      this.activeTool = 'water';
-      this.actionTimer = 3.5; // Chạy trọn vẹn 63 frames tưới nước
-      this.animTimer = 0;
-      sound.playWhack();
-    } else if (input.sickle && this.actionTimer <= 0 && this.isGrounded) {
-      this.state = 'harvest';
-      this.activeTool = 'sickle';
-      this.actionTimer = 2.16; // Chạy trọn vẹn 39 frames thu hoạch
-      this.animTimer = 0;
-      sound.playWhack();
-    } else if (input.fish && this.actionTimer <= 0 && this.isGrounded) {
-      this.state = 'fish';
-      this.actionTimer = 0.5;
-    }
-
-    // 4. Trọng lực
+    // 3. Trọng lực & Di chuyển
     const gravity = 980;
     this.vy += gravity * dt;
 
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // 5. Va chạm đất
-    if (this.y >= groundY) {
-      this.y = groundY;
+    // 4. Va chạm & Bám sát bề mặt địa hình dốc (Smooth Slope Walking)
+    const currentGroundY = GroundPlatform.getGroundY(this.x, baseGroundY);
+
+    if (this.isGrounded && this.vy >= 0) {
+      // Khi đang đi bộ trên mặt đất, bám sát theo độ cao dốc mượt mà
+      this.y = currentGroundY;
+      this.vy = 0;
+    } else if (this.y >= currentGroundY) {
+      this.y = currentGroundY;
       this.vy = 0;
       this.isGrounded = true;
     } else {
       this.isGrounded = false;
     }
 
-    // 6. Cập nhật State
+    // 5. Cập nhật State
     if (this.actionTimer > 0) {
       // Đang thực hiện action
     } else if (!this.isGrounded) {
@@ -240,7 +212,6 @@ export class Player {
     } else if (Math.abs(this.vx) > 0) {
       this.state = 'walk';
     } else {
-      // Đứng yên: Kiểm tra dụng cụ đang cầm
       if (this.activeTool === 'hoe') {
         this.state = 'cam_cuoc';
       } else if (this.activeTool === 'water') {

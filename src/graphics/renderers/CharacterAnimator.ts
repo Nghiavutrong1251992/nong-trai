@@ -12,6 +12,8 @@ export interface AnimationClip {
   frameW?: number;
   frameH?: number;
   scaleMultiplier?: number; // Hệ số tùy chỉnh tỷ lệ (ví dụ: 1.05 cho cao thêm 5%)
+  anchorOffsetX?: number; // Độ dịch chuyển pixel để căn chỉnh đúng trọng tâm chân nhân vật (tránh nhảy hình)
+  anchorOffsetY?: number;
   loopMode?: 'loop' | 'pingpong';
   loopRange?: [number, number]; // [startLoopIndex, endLoopIndex] ví dụ [7, 11] cho frame 008 đến 012
   image?: HTMLImageElement;
@@ -98,14 +100,19 @@ export class CharacterAnimator {
     const renderW = frameW * scale;
     const renderH = this.targetHeight * mult;
 
-    ctx.save();
-    ctx.translate(x, y);
+    const offsetX = (clip.anchorOffsetX || 0) * scale;
+    const offsetY = (clip.anchorOffsetY || 0) * scale;
 
-    // 1. Bóng đổ tiếp xúc mặt đất
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+
+    // 1. Bóng đổ tiếp xúc mặt đất cố định theo kích thước cơ thể nhân vật (không bị phình to khi vung cuốc/tưới nước)
     const isJumping = state === 'jump';
+    const shadowRx = (this.targetHeight * 0.16) * (isJumping ? 0.75 : 1);
+    const shadowRy = (this.targetHeight * 0.038) * (isJumping ? 0.6 : 1);
     ctx.fillStyle = 'rgba(28, 25, 23, 0.28)';
     ctx.beginPath();
-    ctx.ellipse(0, 2, (renderW * 0.3) * (isJumping ? 0.75 : 1), (renderH * 0.035) * (isJumping ? 0.6 : 1), 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 2, shadowRx, shadowRy, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // 2. Quay hướng trái / phải
@@ -117,11 +124,11 @@ export class CharacterAnimator {
     const sx = Math.floor(frameIndex * frameW);
     const sy = 0;
 
-    // 3. Vẽ frame lên Canvas
+    // 3. Vẽ frame lên Canvas với căn chỉnh tâm trọng tâm cơ thể tuyệt đối
     ctx.drawImage(
       clip.image,
       sx, sy, frameW, frameH,
-      -renderW / 2, -renderH + 8, renderW, renderH
+      -renderW / 2 + offsetX, -renderH + 8 + offsetY, renderW, renderH
     );
 
     ctx.restore();

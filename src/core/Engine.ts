@@ -1,5 +1,8 @@
 import { SoundManager } from './SoundManager';
 import { Player } from '../entities/Player';
+import { Buffalo } from '../entities/Buffalo';
+import { VegetableGirl } from '../entities/VegetableGirl';
+import { FloraManager } from '../graphics/plants/FloraManager';
 
 export class Engine {
   private canvas!: HTMLCanvasElement;
@@ -11,12 +14,16 @@ export class Engine {
 
   private sound = new SoundManager();
   private player = new Player(400, 480);
+  private buffalo = new Buffalo(560, 480);
+  private vegetableGirl = new VegetableGirl(820, 480);
+  public floraManager = new FloraManager();
 
   public currentMode: 'map1' | 'studio' = 'map1'; // Mặc định mở Map 1 Làng Quê
   private groundY: number = 480;
   private animTimer: number = 0;
   private cameraX: number = 0;
-  private mapWidth: number = 3600; // Chiều dài Map 1 (3600px)
+  public mapWidth: number = 2400; // Chiều dài Map 1 Mở Rộng gọn gàng (2400px)
+  public showMapRuler: boolean = true; // Bật/Tắt Lưới Thước Đo Bản Đồ
 
   private input = {
     left: false,
@@ -26,23 +33,15 @@ export class Engine {
     fish: false
   };
 
-  // Environment Images (Ghibli / Ninja School Style 2D Hand-drawn Assets)
-  private imgBgSky = new Image();
-  private imgGroundTile = new Image();
-  private imgGate = new Image();
-  private imgCottage = new Image();
-  private imgBamboo = new Image();
+  // Environment Baseline Colors & Settings
+  private skyColorTop: string = '#7dd3fc';
+  private skyColorBottom: string = '#e0f2fe';
+  private groundColor: string = '#86efac';
+  private dirtColor: string = '#573010';
 
   public start(): void {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     this.ctx = this.canvas.getContext('2d')!;
-
-    // Tải trước các asset hình ảnh cảnh nền làng quê
-    this.imgBgSky.src = '/assets/environment/map1/bg_sky.jpg';
-    this.imgGroundTile.src = '/assets/environment/map1/ground_tile.png';
-    this.imgGate.src = '/assets/environment/map1/gate.png';
-    this.imgCottage.src = '/assets/environment/map1/cottage_haystack.png';
-    this.imgBamboo.src = '/assets/environment/map1/bamboo_trees.png';
 
     window.addEventListener('resize', () => this.resizeCanvas());
     this.resizeCanvas();
@@ -51,7 +50,7 @@ export class Engine {
     this.player.x = 450;
     this.player.y = this.groundY;
 
-    this.showToast('🌾 Chào mừng đến với Map 1: Đường Đất Làng Quê 2D!');
+    this.showToast('🌾 Không gian sạch sẵn sàng để xây dựng Cỏ & Cây!');
 
     requestAnimationFrame((t) => this.loop(t));
   }
@@ -120,8 +119,7 @@ export class Engine {
 
       // Phím E / Enter: Dùng dụng cụ
       if (k === 'e' || k === 'enter') {
-        const res = this.player.useTool(this.sound);
-        this.showToast(res.msg);
+        this.handleUseTool();
       }
 
       // Các phím số tắt 1, 2, 3 nhanh
@@ -140,6 +138,32 @@ export class Engine {
         this.showToast('🌾 Đã trang bị: Liềm Cắt Lúa (Ấn E để thu hoạch)');
         this.updateActionButtonsUI();
       }
+      if (k === 'g') {
+        this.showMapRuler = !this.showMapRuler;
+        this.showToast(this.showMapRuler ? '📐 Đã BẬT lưới thước đo phân đoạn bản đồ' : '📐 Đã TẮT lưới thước đo');
+        const btnGrid = document.getElementById('btn-toggle-grid');
+        if (btnGrid) {
+          btnGrid.classList.toggle('active', this.showMapRuler);
+          btnGrid.textContent = this.showMapRuler ? '📐 Thước Đo: BẬT [G]' : '📐 Thước Đo: TẮT [G]';
+        }
+      }
+      if (k === 'm') {
+        const isMuted = this.sound.toggleMute();
+        this.showToast(isMuted ? '🔇 Đã tắt nhạc nền' : '🎵 Đã bật nhạc làng quê');
+        const btnMute = document.getElementById('btn-toggle-music');
+        if (btnMute) btnMute.textContent = isMuted ? '🔇 Bật Nhạc [M]' : '🎵 Nhạc Làng Quê [M]';
+      }
+    });
+
+    // Bật / Tắt Thước Đo Bản Đồ [G]
+    document.getElementById('btn-toggle-grid')?.addEventListener('click', () => {
+      this.showMapRuler = !this.showMapRuler;
+      this.showToast(this.showMapRuler ? '📐 Đã BẬT lưới thước đo phân đoạn bản đồ' : '📐 Đã TẮT lưới thước đo');
+      const btnGrid = document.getElementById('btn-toggle-grid');
+      if (btnGrid) {
+        btnGrid.classList.toggle('active', this.showMapRuler);
+        btnGrid.textContent = this.showMapRuler ? '📐 Thước Đo: BẬT [G]' : '📐 Thước Đo: TẮT [G]';
+      }
     });
 
     window.addEventListener('keyup', (e) => {
@@ -147,6 +171,14 @@ export class Engine {
       if (k === 'a' || k === 'arrowleft') this.input.left = false;
       if (k === 'd' || k === 'arrowright') this.input.right = false;
       if (k === 'w' || k === 'arrowup' || k === ' ') this.input.jump = false;
+    });
+
+    // Bật / Tắt Nhạc Làng Quê
+    document.getElementById('btn-toggle-music')?.addEventListener('click', () => {
+      const isMuted = this.sound.toggleMute();
+      this.showToast(isMuted ? '🔇 Đã tắt nhạc nền' : '🎵 Đã bật nhạc làng quê');
+      const btnMute = document.getElementById('btn-toggle-music');
+      if (btnMute) btnMute.textContent = isMuted ? '🔇 Bật Nhạc [M]' : '🎵 Nhạc Làng Quê [M]';
     });
 
     // Mobile / Screen Touch Buttons
@@ -166,11 +198,42 @@ export class Engine {
 
     // Nút E: Tiến hành dùng dụng cụ
     document.getElementById('btn-use-tool')?.addEventListener('click', () => {
-      const res = this.player.useTool(this.sound);
-      this.showToast(res.msg);
+      this.handleUseTool();
     });
 
     this.updateActionButtonsUI();
+  }
+
+  private handleUseTool(): void {
+    // 1. Tương tác trực tiếp trên thửa ruộng lúa nước (x: 1430px -> 2120px)
+    if (this.player.x >= 1430 && this.player.x <= 2120) {
+      // Ưu tiên 1: Gặt lúa chín
+      const harvestResult = this.floraManager.harvestNearbyRice(this.player.x);
+      if (harvestResult.harvested) {
+        this.sound.play('harvest');
+        this.showToast(`🌾 Gặt thành công ${harvestResult.count} khóm lúa chín vàng! (+${harvestResult.count * 10} Thóc)`);
+        return;
+      }
+
+      // Ưu tiên 2: Cấy mạ non vào vị trí đất trống
+      const planted = this.floraManager.plantSeedling(this.player.x, this.groundY);
+      if (planted) {
+        this.sound.play('click');
+        this.showToast(`🌱 Đã cấy một khóm mạ non xanh tươi xuống ruộng!`);
+        return;
+      }
+    }
+
+    // 2. Dùng công cụ tiêu chuẩn
+    const res = this.player.useTool(this.sound);
+    if (this.player.activeTool === 'water') {
+      const watered = this.floraManager.waterNearbyRice(this.player.x);
+      if (watered) {
+        this.showToast(`💧 Đã tưới nước! Lúa được chăm sóc lớn nhanh vượt trội 🌱`);
+        return;
+      }
+    }
+    this.showToast(res.msg);
   }
 
   private updateActionButtonsUI(): void {
@@ -178,28 +241,10 @@ export class Engine {
     const btnUse = document.getElementById('btn-use-tool');
     if (!btnCycle || !btnUse) return;
 
-    const tool = this.player.activeTool;
-    if (tool === 'hoe') {
-      btnCycle.innerHTML = '⛏️ Cuốc Đất [Q]';
-      btnUse.innerHTML = '⚡ Cuốc Đất [E]';
-      btnUse.style.background = 'rgba(217, 119, 6, 0.85)';
-      btnUse.style.borderColor = '#fbbf24';
-    } else if (tool === 'water') {
-      btnCycle.innerHTML = '💧 Thùng Nước [Q]';
-      btnUse.innerHTML = '⚡ Tưới Nước [E]';
-      btnUse.style.background = 'rgba(37, 99, 235, 0.85)';
-      btnUse.style.borderColor = '#60a5fa';
-    } else if (tool === 'sickle') {
-      btnCycle.innerHTML = '🌾 Cầm Liềm [Q]';
-      btnUse.innerHTML = '⚡ Cắt Lúa [E]';
-      btnUse.style.background = 'rgba(22, 163, 74, 0.85)';
-      btnUse.style.borderColor = '#4ade80';
-    } else {
-      btnCycle.innerHTML = '🌿 Rút Dụng Cụ [Q]';
-      btnUse.innerHTML = '⚡ Dùng Dụng Cụ [E]';
-      btnUse.style.background = 'rgba(225, 29, 72, 0.85)';
-      btnUse.style.borderColor = '#fda4af';
-    }
+    btnCycle.innerHTML = '💧 Tưới Nước [Q]';
+    btnUse.innerHTML = '🌾 Cấy / Gặt [E]';
+    btnUse.style.background = 'rgba(22, 163, 74, 0.85)';
+    btnUse.style.borderColor = '#4ade80';
   }
 
   private loop(timestamp: number): void {
@@ -217,10 +262,40 @@ export class Engine {
     this.animTimer += dt;
 
     if (this.currentMode === 'map1') {
-      // Cập nhật Player di chuyển trong 1 khung hình màn hình
+      this.mapWidth = this.floraManager.mapWidth;
+
+      // 1. Cập nhật Player di chuyển
       this.player.update(dt, this.input, this.groundY, this.sound);
-      this.player.x = Math.max(40, Math.min(this.width - 40, this.player.x));
-      this.cameraX = 0;
+
+      // VÒNG LẶP BẢN ĐỒ TUẦN HOÀN (Seamless World Wrap):
+      // Đi hết Đoạn 0A (X < -400m) -> Vòng sang cuối Đoạn 12 (X = 2380m)
+      if (this.player.x < -400) {
+        this.player.x = 2380;
+        this.cameraX = 2380 - this.width / 2;
+        this.showToast('🌀 Vòng lặp: Đã chuyển sang Đoạn 12 (Bờ đê cuối làng)');
+      }
+      // Đi hết Đoạn 12 (X > 2400m) -> Vòng sang đầu Đoạn 0A (X = -380m)
+      else if (this.player.x > 2400) {
+        this.player.x = -380;
+        this.cameraX = -380 - this.width / 2;
+        this.showToast('🌀 Vòng lặp: Đã chuyển sang Đoạn 0A (Đồng cỏ xa)');
+      }
+
+      // Cập nhật sinh trưởng của cây lúa & hiệu ứng hạt
+      this.floraManager.update(dt);
+
+      // Cập nhật Chú Trâu Làng Quê đi dạo
+      this.buffalo.update(dt, this.groundY);
+
+      // Cập nhật Cô Bé Bán Rau (Bé Miến)
+      this.vegetableGirl.update(dt, this.groundY, this.player.x);
+
+      // 2. Camera bám theo nhân vật mượt mà
+      const targetCamX = this.player.x - this.width / 2;
+      const minCamX = -400;
+      const maxCamX = Math.max(0, this.mapWidth - this.width + 400);
+      const clampedTarget = Math.max(minCamX, Math.min(maxCamX, targetCamX));
+      this.cameraX += (clampedTarget - this.cameraX) * Math.min(1.0, dt * 8);
     }
   }
 
@@ -236,159 +311,204 @@ export class Engine {
   }
 
   // ============================================================
-  // MAP 1: ĐƯỜNG ĐẤT LÀNG QUÊ 2D TRỌN VẸN TRONG 1 KHUNG ẢNH
+  // MAP 1: CẢNH QUAN MỞ RỘNG 4000PX (ĐỒNG CỎ -> RUỘNG LÚA NƯỚC)
   // ============================================================
   private renderMap1(ctx: CanvasRenderingContext2D): void {
     const groundY = this.groundY;
 
     // ------------------------------------------------------------
-    // 1. TRỌN VẸN 1 BỨC TRANH PHONG CẢNH LÀNG QUÊ (Full Single Frame)
+    // 1. NỀN BẦU TRỜI & MÂY TRÔI PARALLAX
     // ------------------------------------------------------------
-    if (this.imgBgSky.complete && this.imgBgSky.naturalWidth > 0) {
-      // Vẽ trọn vẹn 1 khung ảnh vừa khít toàn màn hình
-      ctx.drawImage(this.imgBgSky, 0, 0, this.width, this.height);
-    } else {
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
-      skyGrad.addColorStop(0, '#38bdf8');
-      skyGrad.addColorStop(0.65, '#bae6fd');
-      skyGrad.addColorStop(1, '#fef08a');
-      ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, this.width, this.height);
-    }
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+    skyGrad.addColorStop(0, '#60a5fa');
+    skyGrad.addColorStop(0.5, '#93c5fd');
+    skyGrad.addColorStop(0.85, '#dbeafe');
+    skyGrad.addColorStop(1, '#fef9c3');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, this.width, groundY);
+
+    this.renderAtmosphericClouds(ctx, groundY);
 
     // ------------------------------------------------------------
-    // 2. LỚP MẶT ĐẤT TIẾP ĐẤT GỌN GÀNG (1 Khung hình)
+    // 2. DỊCH CHUYỂN CAMERA THEO THẾ GIỚI GAME (World Space)
     // ------------------------------------------------------------
-    // Nền Đất Thịt Loam dưới đáy màn hình
-    const dirtGrad = ctx.createLinearGradient(0, groundY, 0, this.height);
-    dirtGrad.addColorStop(0, '#78350f');
-    dirtGrad.addColorStop(0.3, '#5c2d10');
-    dirtGrad.addColorStop(1, '#3b1904');
-    ctx.fillStyle = dirtGrad;
-    ctx.fillRect(0, groundY + 12, this.width, this.height - groundY);
+    ctx.save();
+    ctx.translate(-Math.round(this.cameraX), 0);
 
-    // Tile Mặt Cỏ & Sỏi Đất Tách Nền Vẽ Tay
-    if (this.imgGroundTile.complete && this.imgGroundTile.naturalWidth > 0) {
-      const tileH = 95;
-      const tileW = (this.imgGroundTile.naturalWidth / this.imgGroundTile.naturalHeight) * tileH;
+    // A. Lớp Cây Hậu Cảnh (Khóm Tre & Cây Chuối đứng sau)
+    this.floraManager.renderBackgroundTrees(ctx, groundY, this.animTimer);
 
-      for (let tx = 0; tx < this.width + tileW; tx += tileW - 6) {
-        ctx.drawImage(this.imgGroundTile, tx, groundY - 20, tileW, tileH);
-      }
-    }
+    // B. Mặt Đất Đồng Cỏ & Đáy Đất Phù Sa
+    this.floraManager.renderGround(ctx, this.width, this.height, groundY);
 
-    // ------------------------------------------------------------
-    // 3. CÁC THỬA RUỘNG TƯƠNG TÁC TRONG 1 KHUNG MÀN HÌNH
-    // ------------------------------------------------------------
-    const p1X = this.width * 0.25;
-    const p2X = this.width * 0.50;
-    const p3X = this.width * 0.75;
+    // C. Cánh Đồng Lúa Nước Lớp Hậu Cảnh (Mặt nước xanh biếc + Lớp lúa đứng sau người chơi)
+    this.floraManager.renderRiceBackground(ctx, groundY, this.player.x, this.animTimer, this.cameraX, this.width);
 
-    // Thửa 1: Đất cày xới màu nâu
-    ctx.fillStyle = '#451a03';
-    ctx.beginPath();
-    ctx.roundRect(p1X - 60, groundY - 6, 120, 14, 6);
-    ctx.fill();
-    ctx.fillStyle = '#fef08a';
-    ctx.font = 'bold 11px Outfit, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('⛏️ Luống Cày', p1X, groundY + 26);
+    // D. Chú Trâu Làng Quê (Đi dạo trên đồng cỏ)
+    this.buffalo.render(ctx);
 
-    // Thửa 2: Mầm lúa non đã tưới nước
-    ctx.fillStyle = '#1e3a8a';
-    ctx.beginPath();
-    ctx.roundRect(p2X - 60, groundY - 6, 120, 14, 6);
-    ctx.fill();
-    ctx.fillStyle = '#86efac';
-    for (let px = p2X - 50; px < p2X + 50; px += 14) {
-      ctx.fillRect(px, groundY - 16, 3, 12);
-    }
-    ctx.fillStyle = '#fef08a';
-    ctx.fillText('💧 Luống Tưới', p2X, groundY + 26);
+    // E. Cô Bé Bán Rau (Bé Miến)
+    this.vegetableGirl.render(ctx, this.player.x);
 
-    // Thửa 3: Ruộng lúa chín vàng trĩu hạt
-    ctx.fillStyle = '#854d0e';
-    ctx.beginPath();
-    ctx.roundRect(p3X - 60, groundY - 6, 120, 14, 6);
-    ctx.fill();
-    ctx.fillStyle = '#facc15';
-    for (let px = p3X - 50; px < p3X + 50; px += 12) {
-      ctx.beginPath();
-      ctx.arc(px, groundY - 18, 4.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillRect(px - 1.5, groundY - 15, 3, 11);
-    }
-    ctx.fillStyle = '#fef08a';
-    ctx.fillText('🌾 Ruộng Lúa Chín', p3X, groundY + 26);
-
-    // ------------------------------------------------------------
-    // 4. VẼ NHÂN VẬT DUY NHẤT (PLAYER 110px)
-    // ------------------------------------------------------------
+    // F. Nhân Vật Chính (Đang bước đi / lội ruộng nước)
     this.player.render(ctx);
 
-    // NameTag trên đầu nhân vật Player
-    ctx.save();
-    const tagX = this.player.x;
-    const tagY = this.player.y - 105;
-    
-    // Khung NameTag
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.beginPath();
-    ctx.roundRect(tagX - 50, tagY - 10, 100, 18, 9);
-    ctx.fill();
-    ctx.strokeStyle = '#facc15';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    // G. Lớp Tiền Cảnh (Cây lúa tiền cảnh CHE NGANG CHÂN & THÂN NGƯỜI CHƠI + Hoa cỏ dại)
+    this.floraManager.renderForegroundFlora(ctx, groundY, this.player.x, this.animTimer, this.cameraX, this.width);
 
-    // Chữ tên
-    ctx.fillStyle = '#fef08a';
-    ctx.font = 'bold 9.5px Outfit, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('🌱 Bé Nông Dân [Lv.1]', tagX, tagY + 2.5);
+    // H. Lưới Thước Đo & Đánh Số Phân Đoạn Bản Đồ (Map Ruler Grid Overlay)
+    this.renderMapRuler(ctx, groundY);
+
     ctx.restore();
 
     // ------------------------------------------------------------
-    // 5. HIỆU ỨNG LÁ TRE RƠI (Ambient Particles FX)
-    // ------------------------------------------------------------
-    ctx.save();
-    const leafCount = 8;
-    for (let i = 0; i < leafCount; i++) {
-      const t = this.animTimer * 0.8 + i * 1.5;
-      const lx = ((i * 180 + t * 45) % (this.width + 100)) - 50;
-      const ly = (Math.sin(t + i) * 30 + (t * 25) % (groundY - 60)) + 60;
-      const rot = Math.sin(t * 1.5) * 0.6;
-
-      ctx.save();
-      ctx.translate(lx, ly);
-      ctx.rotate(rot);
-      ctx.fillStyle = i % 2 === 0 ? '#4ade80' : '#facc15';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 6, 2.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
-    ctx.restore();
-
-    // ------------------------------------------------------------
-    // 6. HUD THÔNG TIN MAP 1
+    // 3. HUD THÔNG TIN CỐ ĐỊNH TRÊN MÀN HÌNH (Screen Space)
     // ------------------------------------------------------------
     ctx.save();
     ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
     ctx.beginPath();
-    ctx.roundRect(20, 70, 220, 40, 10);
+    ctx.roundRect(20, 68, 300, 56, 12);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = this.showMapRuler ? '#38bdf8' : 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    ctx.fillStyle = '#fde047';
-    ctx.font = 'bold 11px Outfit, sans-serif';
+    let currentSecLabel = 'Đoạn 1';
+    if (this.player.x < -200) currentSecLabel = 'Đoạn 0A';
+    else if (this.player.x < 0) currentSecLabel = 'Đoạn 0B';
+    else {
+      const sId = Math.min(12, Math.floor(this.player.x / 200) + 1);
+      currentSecLabel = `Đoạn ${sId}`;
+    }
+
+    const inPaddy = this.player.x >= this.floraManager.paddyStartX && this.player.x <= this.floraManager.paddyEndX;
+
+    ctx.fillStyle = inPaddy ? '#38bdf8' : '#fde047';
+    ctx.font = 'bold 13px Outfit, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('📍 Map 1: Đồng Quê Làng Đông', 32, 86);
+    ctx.fillText(`📍 Đang ở: [ ${currentSecLabel.toUpperCase()} ] · X: ${Math.round(this.player.x)}m / ${this.mapWidth}m`, 34, 88);
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = '600 9.5px Outfit, sans-serif';
-    ctx.fillText(`Tọa độ: X=${Math.round(this.player.x)}m`, 32, 100);
+    ctx.font = '600 11px Outfit, sans-serif';
+    ctx.fillText(`🌾 Thóc: ${this.floraManager.riceCrop.harvestedGrains} · Phím: [G] Lưới đo · [E] Cấy/Gặt · [Q] Tưới`, 34, 108);
+    ctx.restore();
+  }
+
+  /**
+   * Vẽ Lưới Thước Đo Phân Chia Toàn Bộ Bản Đồ Thành 12 Đoạn Bằng Nhau
+   */
+  private renderMapRuler(ctx: CanvasRenderingContext2D, groundY: number): void {
+    if (!this.showMapRuler) return;
+
+    ctx.save();
+
+    // Danh sách toàn bộ các phân đoạn (Bao gồm cả Cánh Đồng Cỏ Mở Rộng Bên Trái)
+    const sections: Array<{ id: string | number; start: number; end: number; label: string; icon: string; col: string }> = [
+      // 2 Phân đoạn mở rộng bên trái (x: -400m -> 0m)
+      { id: '0A', start: -400, end: -200, label: 'Đồng Cỏ Xa (Trái)', icon: '🌿', col: '#06b6d4' },
+      { id: '0B', start: -200, end: 0,    label: 'Cánh Cỏ Hoa (Trái)', icon: '🌸', col: '#a855f7' },
+
+      // 12 Phân đoạn chính của bản đồ (x: 0m -> 2400m)
+      { id: 1,  start: 0,    end: 200,  label: 'Đầu Làng',          icon: '🏡', col: '#38bdf8' },
+      { id: 2,  start: 200,  end: 400,  label: 'Lũy Tre Xanh',      icon: '🎋', col: '#4ade80' },
+      { id: 3,  start: 400,  end: 600,  label: 'Bãi Trâu & Cỏ',     icon: '🐃', col: '#a3e635' },
+      { id: 4,  start: 600,  end: 800,  label: 'Đồng Cỏ Hoa',       icon: '🌸', col: '#f472b6' },
+      { id: 5,  start: 800,  end: 1000, label: 'Dốc Lên Ụ Đất',     icon: '⛰️', col: '#fbbf24' },
+      { id: 6,  start: 1000, end: 1200, label: 'Đỉnh Đồi & Bé Miến',icon: '👧', col: '#f87171' },
+      { id: 7,  start: 1200, end: 1400, label: 'Dốc Xuống Ruộng',    icon: '🍌', col: '#fb923c' },
+      { id: 8,  start: 1400, end: 1600, label: 'Ruộng Mạ Non (14px)',icon: '🌱', col: '#22c55e' },
+      { id: 9,  start: 1600, end: 1800, label: 'Lúa Đẻ Nhánh (22px)',icon: '🌿', col: '#06b6d4' },
+      { id: 10, start: 1800, end: 2000, label: 'Lúa Làm Đòng (34px)',icon: '🌾', col: '#eab308' },
+      { id: 11, start: 2000, end: 2200, label: 'Lúa Chín Vàng (56px)',icon: '🌾', col: '#f59e0b' },
+      { id: 12, start: 2200, end: 2400, label: 'Bờ Đê Cuối Làng',   icon: '🌳', col: '#38bdf8' }
+    ];
+
+    sections.forEach(sec => {
+      const midX = (sec.start + sec.end) / 2;
+      const width = sec.end - sec.start;
+
+      // 1. Đường dóng phân chia ranh giới đoạn (Vạch đứt màu)
+      ctx.strokeStyle = sec.col;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(sec.start, 0);
+      ctx.lineTo(sec.start, this.height);
+      ctx.stroke();
+
+      // 2. Thẻ Tiêu Đề Đoạn ở trên cao (Top Section Badge)
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.beginPath();
+      ctx.roundRect(midX - 75, 75, 150, 48, 8);
+      ctx.fill();
+      ctx.strokeStyle = sec.col;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Text tiêu đề đoạn
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Đoạn ${sec.id}: ${sec.icon} ${sec.label}`, midX, 94);
+
+      ctx.fillStyle = sec.col;
+      ctx.font = 'bold 11px Outfit, sans-serif';
+      ctx.fillText(`${sec.start}m ➔ ${sec.end}m (${width}m)`, midX, 112);
+
+      // 3. Vạch thước đo tọa độ dọc mặt đất
+      const gy = groundY;
+      ctx.fillStyle = sec.col;
+      ctx.beginPath();
+      ctx.roundRect(midX - 44, gy + 18, 88, 22, 6);
+      ctx.fill();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 11px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`[ ĐOẠN ${sec.id} ]`, midX, gy + 33);
+    });
+
+    // Đường ranh giới bắt đầu (x = -400m) & kết thúc (x = 2400m)
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([8, 4]);
+    ctx.beginPath();
+    ctx.moveTo(-400, 0);
+    ctx.lineTo(-400, this.height);
+    ctx.moveTo(this.mapWidth, 0);
+    ctx.lineTo(this.mapWidth, this.height);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  /**
+   * Vẽ các đám mây mềm mại trôi nhẹ ở hậu cảnh
+   */
+  private renderAtmosphericClouds(ctx: CanvasRenderingContext2D, groundY: number): void {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    
+    const clouds = [
+      { xOffset: 80, y: groundY * 0.22, scale: 1.2, speed: 12 },
+      { xOffset: 450, y: groundY * 0.38, scale: 0.85, speed: 8 },
+      { xOffset: 880, y: groundY * 0.18, scale: 1.4, speed: 15 },
+      { xOffset: 1300, y: groundY * 0.32, scale: 0.95, speed: 10 }
+    ];
+
+    clouds.forEach(c => {
+      const cx = ((c.xOffset + this.animTimer * c.speed) % (this.width + 300)) - 150;
+      const cy = c.y;
+      
+      ctx.beginPath();
+      ctx.arc(cx, cy, 28 * c.scale, 0, Math.PI * 2);
+      ctx.arc(cx + 25 * c.scale, cy - 10 * c.scale, 35 * c.scale, 0, Math.PI * 2);
+      ctx.arc(cx + 60 * c.scale, cy - 5 * c.scale, 28 * c.scale, 0, Math.PI * 2);
+      ctx.arc(cx + 85 * c.scale, cy, 20 * c.scale, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
     ctx.restore();
   }
 
