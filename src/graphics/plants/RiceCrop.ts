@@ -237,25 +237,28 @@ export class RiceCrop {
   // ============================================================
   // KHỞI TẠO THỬA RUỘNG LÚA (660px)
   // ============================================================
-  public initRiceField(startX: number = 1400, endX: number = 2200): void {
+  public initRiceField(startX: number = 1800, endX: number = 2600): void {
     this.paddyStartX = startX;
     this.paddyEndX = endX;
     this.plants = [];
 
     const spacing = 10.5; // Khoảng cách cấy khóm mạ chuẩn
+    const totalW = endX - startX;
+    const quarterW = totalW / 4;
 
     for (let x = startX + 10; x < endX - 10; x += spacing) {
-      // Phân chia chính xác 4 giai đoạn vào đúng 4 Đoạn 8, 9, 10, 11:
+      const relX = x - startX;
       let stage: RiceGrowthStage = 'seedling';
-      if (x < 1600) {
-        stage = 'seedling';   // Đoạn 8 (1400m - 1600m): Mạ non 14px
-      } else if (x < 1800) {
-        stage = 'tillering';  // Đoạn 9 (1600m - 1800m): Lúa đẻ nhánh 22px
-      } else if (x < 2000) {
-        stage = 'booting';    // Đoạn 10 (1800m - 2000m): Lúa làm đòng 34px
+      if (relX < quarterW) {
+        stage = 'seedling';   // Ô 1: Mạ non 14px
+      } else if (relX < quarterW * 2) {
+        stage = 'tillering';  // Ô 2: Lúa đẻ nhánh 22px
+      } else if (relX < quarterW * 3) {
+        stage = 'booting';    // Ô 3: Lúa làm đòng 34px
       } else {
-        stage = 'ripe';       // Đoạn 11 (2000m - 2200m): Lúa chín vàng trĩu hạt 56px
+        stage = 'ripe';       // Ô 4: Lúa chín vàng trĩu hạt 56px
       }
+
 
       const rLayer = Math.random();
       const layer: 'back' | 'mid' | 'front' = rLayer < 0.35 ? 'back' : rLayer < 0.70 ? 'mid' : 'front';

@@ -50,11 +50,15 @@ export class Engine {
   public groundY: number = 480;
   public animTimer: number = 0;
   public cameraX: number = 0;
-  public mapWidth: number = 2400; // Chiều dài Map 1 Mở Rộng (2400px)
+  public mapWidth: number = 2800; // Chiều dài Map 1 Mở Rộng (2800px)
+
+
   public showMapRuler: boolean = true; // Bật/Tắt Lưới Thước Đo [G]
   public showAnimalLabels: boolean = false; // Bật/Tắt Phụ Đề Nhãn Tên Thú Nuôi [N] (Mặc định TẮT)
   public showCow: boolean = false; // Ẩn / Hiện Bò Nâu (Mặc định Ẩn)
   public showVegetableGirl: boolean = false; // Ẩn / Hiện Bé Miến Bán Rau (Mặc định Ẩn)
+  public showFluteKite: boolean = false; // Ẩn / Hiện Diều Sáo (Mặc định Ẩn)
+
 
   public start(): void {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -65,7 +69,21 @@ export class Engine {
 
     this.inputController.bindEvents();
 
+    // Kết nối âm thanh thời tiết và sấm sét
+    this.worldRenderer.weatherManager.onWeatherChange = (weather) => {
+      this.sound.setWeatherAmbient(weather);
+      document.querySelectorAll('.env-btn[data-weather]').forEach(btn => {
+        const w = (btn as HTMLElement).dataset.weather;
+        btn.classList.toggle('active', w === weather);
+      });
+    };
+    this.worldRenderer.weatherManager.onThunder = () => {
+      this.sound.playThunder();
+    };
+
+
     // 1. Tải và phục hồi dữ liệu thế giới từ localStorage
+
     const saved = SaveManager.load();
     if (saved) {
       if (saved.bananas && Array.isArray(saved.bananas) && saved.bananas.length > 0) {
@@ -176,11 +194,15 @@ export class Engine {
     this.animTimer += dt;
 
     if (this.currentMode === 'map1') {
-      // 1. Cập nhật Player & Physics
+      // 1. Cập nhật Bầu Trời & Hiệu ứng thời tiết
+      this.worldRenderer.update(dt);
+
+      // Cập nhật Player & Physics
       this.player.update(dt, this.inputController.input, this.groundY, this.sound);
 
       // Cập nhật Cây Chuối & Cây Trồng
       this.floraManager.update(dt);
+
 
       // Hoàn tất bứng cây chuối khi cuốc xong
       if (this.inputController.pendingDigBanana && this.player.actionTimer <= 0) {
@@ -204,8 +226,10 @@ export class Engine {
       // Cập nhật Con Cò Trắng (Đứng ngắm cảnh, cất cánh & sà xuống ruộng lúa)
       this.stork.update(dt, this.groundY, this.player.x);
 
-      // Cập nhật Diều Sáo Dân Gian
-      this.fluteKite.update(dt, this.player.x, this.player.y, this.player.vx, this.player.facing);
+      // Cập nhật Diều Sáo Dân Gian (Tạm ẩn theo yêu cầu)
+      if (this.showFluteKite) {
+        this.fluteKite.update(dt, this.player.x, this.player.y, this.player.vx, this.player.facing);
+      }
 
       // Cập nhật Chú Bò Nâu Làng Quê (Tạm ẩn theo yêu cầu)
       if (this.showCow) {
@@ -246,9 +270,9 @@ export class Engine {
   private renderMap1(ctx: CanvasRenderingContext2D): void {
     const groundY = this.groundY;
 
-    // 1. NỀN BẦU TRỜI & MÂY TRÔI PARALLAX
+    // 1. NỀN BẦU TRỜI (Gradient + Mặt Trời/Trăng + Mây + Sấm Sét)
     this.worldRenderer.renderSky(ctx, this.width, groundY);
-    this.worldRenderer.renderAtmosphericClouds(ctx, this.width, groundY, this.animTimer);
+
 
     // 2. DỊCH CHUYỂN CAMERA THEO THẾ GIỚI GAME (World Space)
     ctx.save();
@@ -257,8 +281,9 @@ export class Engine {
     // A. Cây Hậu Cảnh (Khóm Tre & Cây Chuối đứng sau)
     this.floraManager.renderBackgroundTrees(ctx, groundY, this.animTimer, this.player.x);
 
-    // B. Mặt Đất Đồng Cỏ & Phù Sa
-    this.floraManager.renderGround(ctx, this.width, this.height, groundY);
+    // B. Mặt Đất Đồng Cỏ & Phù Sa & Hồ Cá Làng Quê
+    this.floraManager.renderGround(ctx, this.width, this.height, groundY, this.animTimer, this.player.x);
+
 
     // C. Cánh Đồng Lúa Nước Lớp Hậu Cảnh
     this.floraManager.renderRiceBackground(ctx, groundY, this.player.x, this.animTimer, this.cameraX, this.width);
@@ -285,8 +310,11 @@ export class Engine {
     // F. Nhân Vật Chính
     this.player.render(ctx);
 
-    // Diều sáo & Dây diều nối tay người chơi
-    this.fluteKite.render(ctx, this.player.x, this.player.y, this.player.facing);
+    // Diều sáo & Dây diều nối tay người chơi (Đã ẩn)
+    if (this.showFluteKite) {
+      this.fluteKite.render(ctx, this.player.x, this.player.y, this.player.facing);
+    }
+
 
     // G. Cây lúa Tiền Cảnh che ngang chân & Hoa cỏ dại
     this.floraManager.renderForegroundFlora(ctx, groundY, this.player.x, this.animTimer, this.cameraX, this.width);
@@ -296,8 +324,11 @@ export class Engine {
 
     ctx.restore();
 
+    // 2.5 HIỆU ỨNG THỜI TIẾT TIỀN CẢNH (MƯA RƠI, GIÓ THỔI, LÁ BAY)
+    this.worldRenderer.renderWeatherForeground(ctx, this.width, groundY);
 
     // 3. HUD Thông Số
+
     this.worldRenderer.renderHUD(
       ctx,
       this.width,

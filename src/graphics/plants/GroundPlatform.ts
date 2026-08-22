@@ -1,7 +1,10 @@
 /**
  * GroundPlatform.ts
- * Module vẽ Mặt Đất & Đồi Cỏ Xanh Mướt Đồng Quê Đa Tầng
- * Mở rộng đồng cỏ vô tận sang bên trái (x: -500px -> 2400px) tạo cảnh quan bao la, không bị cụt mép.
+ * Module vẽ Nền Đất Phù Sa & Thảm Cỏ Đa Tầng Làng Quê Đậm Chất Nghệ Thuật:
+ * - 🌿 Thảm Cỏ Xanh Nhiệt Đới Đa Tầng: Viền cỏ vòm uốn lượn (scalloped turf), vạt nắng loang lổ
+ * - 🍄 Nấm Dại Đồng Quê (Wild Mushrooms): Mọc tự nhiên ven bờ cỏ và sườn đồi
+ * - 🪨 Địa Tầng Lòng Đất Giàu Chi Tiết: Rễ tre bện xoắn, đá cuội vân nứt, khoáng thạch lấp lánh
+ * - ⛰️ Mô Đất / Đồi Cao: Phủ trọn vẹn thảm cỏ tơ xốp mỡ màng, an toàn 100% không lỗi bán kính âm
  */
 
 export class GroundPlatform {
@@ -11,32 +14,32 @@ export class GroundPlatform {
   private cachedGroundY: number = 0;
 
   public static getGroundY(x: number, baseGroundY: number): number {
-    if (x <= 800) {
-      // 1. Đồng cỏ thấp (Mở rộng từ x: -500m -> 800m)
+    if (x <= 1200) {
+      // 1. Đồng bằng thấp & Vùng Ao Cá (x: -500m -> 1200m)
       return baseGroundY;
-    } else if (x <= 1000) {
-      // 2. Đoạn 5 (800 -> 1000m): Dốc lên đồi cỏ xanh thoai thoải
-      const p = (x - 800) / 200;
-      const s = p * p * (3 - 2 * p);
-      return baseGroundY - s * 65;
-    } else if (x <= 1200) {
-      // 3. Đoạn 6 (1000 -> 1200m): Đỉnh đồi cỏ xanh cao ráo
-      return baseGroundY - 65;
     } else if (x <= 1400) {
-      // 4. Đoạn 7 (1200 -> 1400m): Sườn dốc thoai thoải dẫn xuống ruộng lúa
+      // 2. Dốc lên mô đất / đồi cỏ xanh thoai thoải (1200 -> 1400m)
       const p = (x - 1200) / 200;
       const s = p * p * (3 - 2 * p);
+      return baseGroundY - s * 65;
+    } else if (x <= 1600) {
+      // 3. Đỉnh mô đất / đồi cỏ xanh cao ráo (1400 -> 1600m)
+      return baseGroundY - 65;
+    } else if (x <= 1800) {
+      // 4. Sườn dốc thoai thoải dẫn xuống ruộng lúa (1600 -> 1800m)
+      const p = (x - 1600) / 200;
+      const s = p * p * (3 - 2 * p);
       return (baseGroundY - 65) + s * 69;
-    } else if (x <= 2200) {
-      // 5. Đoạn 8, 9, 10, 11 (1400 -> 2200m): Thửa ruộng lúa nước
+    } else if (x <= 2600) {
+      // 5. Thửa ruộng lúa nước 4 đoạn (1800 -> 2600m)
       return baseGroundY + 4;
-    } else if (x <= 2280) {
-      // 6. Đoạn 12 (2200 -> 2280m): Bờ đê thoải lên cuối thửa ruộng
-      const p = (x - 2200) / 80;
+    } else if (x <= 2680) {
+      // 6. Bờ đê thoải lên cuối thửa ruộng (2600 -> 2680m)
+      const p = (x - 2600) / 80;
       const s = p * p * (3 - 2 * p);
       return (baseGroundY + 4) - s * 4;
     } else {
-      // 7. Đoạn 12 (2280 -> 2400m): Bờ cỏ cuối cánh đồng
+      // 7. Bờ cỏ cuối cánh đồng (2680 -> 2800m)
       return baseGroundY;
     }
   }
@@ -67,164 +70,234 @@ export class GroundPlatform {
     this.cachedH = height;
     this.cachedGroundY = groundY;
 
-    const minX = -500; // Mở rộng sang trái 500px
-    const maxX = width + 300;
-    const totalW = maxX - minX;
+    const minX = -500;
+    const maxX = 2800;
+    const bufferW = maxX - minX;
+    const bufferH = height;
 
-    const c = document.createElement('canvas');
-    c.width = totalW;
-    c.height = height;
-    const gCtx = c.getContext('2d')!;
+    if (!this.groundCanvas) {
+      this.groundCanvas = document.createElement('canvas');
+    }
+    this.groundCanvas.width = bufferW;
+    this.groundCanvas.height = bufferH;
 
-    const paddyStartX = 1400; // Đoạn 8
-    const paddyEndX = 2200;   // Đoạn 11
+    const bCtx = this.groundCanvas.getContext('2d');
+    if (!bCtx) return;
 
-    // Dịch tọa độ sang buffer cục bộ
-    gCtx.translate(-minX, 0);
+    bCtx.save();
+    bCtx.translate(-minX, 0);
 
-    // ------------------------------------------------------------
-    // 1. TẦNG ĐẤT THỊT SÂU MÀU NÂU ĐEN XUYÊN SUỐT TOÀN BỘ ĐỊA HÌNH (-500px -> maxX)
-    // ------------------------------------------------------------
-    const soilGrad = gCtx.createLinearGradient(0, groundY - 75, 0, height);
-    soilGrad.addColorStop(0, '#543015');
-    soilGrad.addColorStop(0.18, '#3d200c');
-    soilGrad.addColorStop(0.55, '#291407');
-    soilGrad.addColorStop(1, '#1a0b04');
-    gCtx.fillStyle = soilGrad;
+    // ============================================================
+    // 1. TẦNG ĐẤT NỀN NÂU PHÙ SA ĐA LỚP (RICH EARTH & SOIL STRATA)
+    // ============================================================
+    const fullGroundGrad = bCtx.createLinearGradient(0, groundY - 70, 0, height);
+    fullGroundGrad.addColorStop(0, '#2d1a08'); // Tầng đất mùn giàu dinh dưỡng
+    fullGroundGrad.addColorStop(0.25, '#1e1105'); // Tầng đất sét nâu đỏ
+    fullGroundGrad.addColorStop(0.60, '#140b03'); // Tầng đất sâu
+    fullGroundGrad.addColorStop(1.00, '#0a0501'); // Đáy đất thẳm
+    bCtx.fillStyle = fullGroundGrad;
 
-    gCtx.beginPath();
-    gCtx.moveTo(minX, height);
-    gCtx.lineTo(minX, GroundPlatform.getGroundY(minX, groundY) + 2);
+    bCtx.beginPath();
+    bCtx.moveTo(minX, height);
+    bCtx.lineTo(minX, GroundPlatform.getGroundY(minX, groundY));
 
-    for (let x = minX; x <= maxX; x += 4) {
-      const gy = GroundPlatform.getGroundY(x, groundY);
-      gCtx.lineTo(x, gy + 2);
+    for (let x = minX; x <= maxX; x += 6) {
+      bCtx.lineTo(x, GroundPlatform.getGroundY(x, groundY));
     }
 
-    gCtx.lineTo(maxX, height);
-    gCtx.closePath();
-    gCtx.fill();
+    bCtx.lineTo(maxX, height);
+    bCtx.closePath();
+    bCtx.fill();
 
-    // Sỏi đá cuội tự nhiên dưới tầng đất
-    for (let sx = minX + 14; sx < maxX; sx += 28) {
-      const surfaceY = GroundPlatform.getGroundY(sx, groundY);
-      const pebbleW = 7 + (Math.abs(sx) % 6);
-      const pebbleH = 3.5 + (Math.abs(sx) % 4);
-      const pebbleY = surfaceY + 12 + (Math.abs(sx) % 10);
+    // ============================================================
+    // 2. CHI TIẾT ĐỊA CHẤT TRONG LÒNG ĐẤT (ROOTS, PEBBLES, STRATA)
+    // ============================================================
+    // A. Các dải địa tầng phù sa uốn lượn
+    const strataConfigs = [
+      { yOffset: 35, width: 4.0, color: 'rgba(85, 45, 14, 0.45)', wave: 0.015, amp: 6 },
+      { yOffset: 65, width: 6.0, color: 'rgba(60, 30, 8, 0.55)', wave: 0.010, amp: 8 },
+      { yOffset: 105, width: 8.0, color: 'rgba(40, 20, 5, 0.65)', wave: 0.008, amp: 10 }
+    ];
 
-      gCtx.fillStyle = Math.abs(sx) % 2 === 0 ? '#65391a' : '#854d0e';
-      gCtx.beginPath();
-      gCtx.ellipse(sx, pebbleY, pebbleW * 0.7, pebbleH * 0.7, 0.1, 0, Math.PI * 2);
-      gCtx.fill();
-
-      gCtx.fillStyle = 'rgba(254, 240, 138, 0.15)';
-      gCtx.beginPath();
-      gCtx.ellipse(sx - 1, pebbleY - 1, pebbleW * 0.35, pebbleH * 0.35, 0, 0, Math.PI * 2);
-      gCtx.fill();
-    }
-
-    // ------------------------------------------------------------
-    // 2. THẢM ĐỒI CỎ XANH MƯỚT (-500px -> 1400m & 2200m -> maxX)
-    // ------------------------------------------------------------
-    const turfGrad = gCtx.createLinearGradient(0, groundY - 80, 0, groundY + 15);
-    turfGrad.addColorStop(0, '#84cc16'); // Xanh mạ non ấm áp
-    turfGrad.addColorStop(0.35, '#65a30d'); // Xanh lá cây tươi tắn
-    turfGrad.addColorStop(0.75, '#4d7c0f'); // Xanh lục đầm ấm
-    turfGrad.addColorStop(1, '#3b1d07');    // Chuyển sang màu đất thịt
-    gCtx.fillStyle = turfGrad;
-
-    // A. Đoạn đồi cỏ trước: từ -500px -> 1400m
-    gCtx.beginPath();
-    gCtx.moveTo(minX, GroundPlatform.getGroundY(minX, groundY) - 6);
-    for (let x = minX; x <= paddyStartX; x += 4) {
-      const gy = GroundPlatform.getGroundY(x, groundY);
-      gCtx.lineTo(x, gy - 6);
-    }
-    for (let x = paddyStartX; x >= minX; x -= 4) {
-      const gy = GroundPlatform.getGroundY(x, groundY);
-      gCtx.lineTo(x, gy + 8);
-    }
-    gCtx.closePath();
-    gCtx.fill();
-
-    // B. Đoạn bờ đê sau: từ 2200m -> maxX
-    if (maxX > paddyEndX) {
-      gCtx.beginPath();
-      gCtx.moveTo(paddyEndX, GroundPlatform.getGroundY(paddyEndX, groundY) - 6);
-      for (let x = paddyEndX; x <= maxX; x += 4) {
-        const gy = GroundPlatform.getGroundY(x, groundY);
-        gCtx.lineTo(x, gy - 6);
+    strataConfigs.forEach(st => {
+      bCtx.strokeStyle = st.color;
+      bCtx.lineWidth = st.width;
+      bCtx.beginPath();
+      for (let x = minX; x <= maxX; x += 20) {
+        const y = GroundPlatform.getGroundY(x, groundY) + st.yOffset + Math.sin(x * st.wave) * st.amp;
+        if (x === minX) bCtx.moveTo(x, y);
+        else bCtx.lineTo(x, y);
       }
-      for (let x = maxX; x >= paddyEndX; x -= 4) {
-        const gy = GroundPlatform.getGroundY(x, groundY);
-        gCtx.lineTo(x, gy + 8);
+      bCtx.stroke();
+    });
+
+    // B. Rễ cây cổ thụ & rễ tre bện xoắn đâm sâu vào lòng đất
+    bCtx.strokeStyle = '#78350f';
+    bCtx.lineWidth = 2.0;
+    bCtx.lineCap = 'round';
+    for (let x = minX + 40; x <= maxX - 40; x += 75) {
+      const startY = GroundPlatform.getGroundY(x, groundY) + 16;
+      const rDir = (Math.abs(x) % 2 === 0 ? 1 : -1);
+      bCtx.beginPath();
+      bCtx.moveTo(x, startY);
+      bCtx.quadraticCurveTo(x + rDir * 12, startY + 18, x + rDir * 6, startY + 38);
+      bCtx.quadraticCurveTo(x + rDir * 18, startY + 52, x + rDir * 10, startY + 68);
+      bCtx.stroke();
+
+      // Nhánh rễ con
+      bCtx.lineWidth = 1.0;
+      bCtx.beginPath();
+      bCtx.moveTo(x + rDir * 8, startY + 28);
+      bCtx.lineTo(x - rDir * 10, startY + 42);
+      bCtx.stroke();
+      bCtx.lineWidth = 2.0;
+    }
+
+    // C. Các viên sỏi đá cuội chìm có vân nứt (Đảm bảo bán kính luôn dương)
+    const pebbleColors = ['#78716c', '#57534e', '#a8a29e', '#44403c', '#d6d3d1'];
+    for (let x = minX + 25; x <= maxX - 25; x += 38) {
+      const pY = GroundPlatform.getGroundY(x, groundY) + 24 + (Math.abs(x * 13) % 65);
+      const pr = 3.5 + (Math.abs(x * 7) % 5);
+      const col = pebbleColors[Math.abs(x) % pebbleColors.length];
+
+      // Thân đá
+      bCtx.fillStyle = col;
+      bCtx.beginPath();
+      bCtx.ellipse(x, pY, Math.max(1, pr * 1.3), Math.max(1, pr * 0.85), (Math.abs(x) % 5) * 0.2, 0, Math.PI * 2);
+      bCtx.fill();
+
+      // Điểm sáng trên đá
+      bCtx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      bCtx.beginPath();
+      bCtx.arc(x - pr * 0.3, pY - pr * 0.25, Math.max(0.5, pr * 0.35), 0, Math.PI * 2);
+      bCtx.fill();
+    }
+
+    // ============================================================
+    // 3. TẦNG THẢM CỎ XANH MƯỢT NỔI KHỐI (MULTI-LAYER SOD & SCALLOPED TURF)
+    // ============================================================
+    // Lớp 1: Khối cỏ sâu dày 35px
+    const deepSodGrad = bCtx.createLinearGradient(0, groundY - 70, 0, groundY + 45);
+    deepSodGrad.addColorStop(0, '#22c55e');
+    deepSodGrad.addColorStop(0.35, '#16a34a');
+    deepSodGrad.addColorStop(0.75, '#15803d');
+    deepSodGrad.addColorStop(1.0, '#14532d');
+    bCtx.fillStyle = deepSodGrad;
+
+    bCtx.beginPath();
+    bCtx.moveTo(minX, GroundPlatform.getGroundY(minX, groundY));
+    for (let x = minX; x <= maxX; x += 6) {
+      bCtx.lineTo(x, GroundPlatform.getGroundY(x, groundY));
+    }
+    for (let x = maxX; x >= minX; x -= 6) {
+      bCtx.lineTo(x, GroundPlatform.getGroundY(x, groundY) + 32);
+    }
+    bCtx.closePath();
+    bCtx.fill();
+
+    // Lớp 2: Viền răng cưa rễ cỏ ăn sâu vào đất (Root teeth fringe)
+    bCtx.fillStyle = '#14532d';
+    bCtx.beginPath();
+    for (let x = minX; x <= maxX; x += 10) {
+      const topY = GroundPlatform.getGroundY(x, groundY) + 30;
+      const tipY = topY + 8 + (Math.abs(x * 7) % 8);
+      bCtx.moveTo(x - 5, topY);
+      bCtx.lineTo(x, tipY);
+      bCtx.lineTo(x + 5, topY);
+    }
+    bCtx.closePath();
+    bCtx.fill();
+
+    // Lớp 3: Thảm cỏ xanh mơn mởn trên bề mặt dày 14px (Bright Surface Sod)
+    const topSodGrad = bCtx.createLinearGradient(0, groundY - 70, 0, groundY + 20);
+    topSodGrad.addColorStop(0, '#86efac');
+    topSodGrad.addColorStop(0.30, '#4ade80');
+    topSodGrad.addColorStop(0.75, '#22c55e');
+    topSodGrad.addColorStop(1.0, '#16a34a');
+    bCtx.fillStyle = topSodGrad;
+
+    bCtx.beginPath();
+    bCtx.moveTo(minX, GroundPlatform.getGroundY(minX, groundY));
+    for (let x = minX; x <= maxX; x += 6) {
+      bCtx.lineTo(x, GroundPlatform.getGroundY(x, groundY));
+    }
+    for (let x = maxX; x >= minX; x -= 6) {
+      bCtx.lineTo(x, GroundPlatform.getGroundY(x, groundY) + 14);
+    }
+    bCtx.closePath();
+    bCtx.fill();
+
+    // ============================================================
+    // 4. VIỀN VÒM CỎ NỔI KHỐI 3D (SCALLOPED TURF BLOCKS)
+    // ============================================================
+    bCtx.fillStyle = '#4ade80';
+    for (let x = minX + 5; x <= maxX - 5; x += 15) {
+      const y = GroundPlatform.getGroundY(x, groundY) + 1;
+      const radius = 6.5 + (Math.abs(x * 3) % 4);
+      bCtx.beginPath();
+      bCtx.arc(x, y + 1.5, Math.max(1, radius), Math.PI * 0.9, Math.PI * 2.1);
+      bCtx.fill();
+    }
+
+    // Các vạt nắng loang lổ sáng màu trên thảm cỏ (Dappled Sunlight Patches)
+    bCtx.fillStyle = 'rgba(254, 240, 138, 0.38)';
+    for (let x = minX + 20; x <= maxX - 20; x += 42) {
+      const y = GroundPlatform.getGroundY(x, groundY) + 4;
+      bCtx.beginPath();
+      bCtx.ellipse(x, y, 14, 4.5, 0.1, 0, Math.PI * 2);
+      bCtx.fill();
+    }
+
+    // ============================================================
+    // 5. CÂY NẤM DẠI ĐỒNG QUÊ (WILD MUSHROOMS)
+    // ============================================================
+    const mushroomLocations = [
+      { x: -350, type: 'red',   scale: 1.0 },
+      { x: -210, type: 'brown', scale: 0.85 },
+      { x: -70,  type: 'red',   scale: 1.1 },
+      { x: 860,  type: 'brown', scale: 1.15 },
+      { x: 980,  type: 'red',   scale: 0.9 },
+      { x: 1120, type: 'brown', scale: 1.05 },
+      { x: 1340, type: 'red',   scale: 1.2 },
+      { x: 1460, type: 'brown', scale: 1.0 },
+      { x: 1580, type: 'red',   scale: 1.1 },
+      { x: 2650, type: 'brown', scale: 1.05 }
+    ];
+
+    mushroomLocations.forEach(m => {
+      const my = GroundPlatform.getGroundY(m.x, groundY);
+      const s = m.scale;
+
+      // Thân nấm trắng ngà
+      bCtx.fillStyle = '#fef3c7';
+      bCtx.fillRect(m.x - 2 * s, my - 9 * s, Math.max(1, 4 * s), Math.max(1, 10 * s));
+
+      // Mũ nấm
+      if (m.type === 'red') {
+        bCtx.fillStyle = '#ef4444';
+        bCtx.beginPath();
+        bCtx.arc(m.x, my - 9 * s, Math.max(1, 7 * s), Math.PI, Math.PI * 2);
+        bCtx.fill();
+
+        bCtx.fillStyle = '#ffffff';
+        bCtx.beginPath();
+        bCtx.arc(m.x - 3 * s, my - 12 * s, Math.max(0.5, 1.2 * s), 0, Math.PI * 2);
+        bCtx.arc(m.x + 2 * s, my - 13 * s, Math.max(0.5, 1.4 * s), 0, Math.PI * 2);
+        bCtx.arc(m.x + 3.5 * s, my - 10 * s, Math.max(0.5, 1.0 * s), 0, Math.PI * 2);
+        bCtx.fill();
+      } else {
+        bCtx.fillStyle = '#92400e';
+        bCtx.beginPath();
+        bCtx.ellipse(m.x, my - 8.5 * s, Math.max(1, 6.5 * s), Math.max(1, 4.5 * s), 0, Math.PI, Math.PI * 2);
+        bCtx.fill();
+
+        bCtx.fillStyle = '#d97706';
+        bCtx.beginPath();
+        bCtx.arc(m.x, my - 10 * s, Math.max(0.5, 2 * s), 0, Math.PI * 2);
+        bCtx.fill();
       }
-      gCtx.closePath();
-      gCtx.fill();
-    }
+    });
 
-    // ------------------------------------------------------------
-    // 3. VIỀN SÁNG MỀM MẠI TRÊN ĐỈNH ĐỒI CỎ (Soft Hilltop Highlights)
-    // ------------------------------------------------------------
-    gCtx.fillStyle = 'rgba(190, 242, 100, 0.45)';
-    gCtx.beginPath();
-    gCtx.moveTo(minX, GroundPlatform.getGroundY(minX, groundY) - 6);
-    for (let x = minX; x <= paddyStartX; x += 4) {
-      const gy = GroundPlatform.getGroundY(x, groundY);
-      gCtx.lineTo(x, gy - 6);
-    }
-    for (let x = paddyStartX; x >= minX; x -= 4) {
-      const gy = GroundPlatform.getGroundY(x, groundY);
-      gCtx.lineTo(x, gy - 2);
-    }
-    gCtx.closePath();
-    gCtx.fill();
-
-    // ------------------------------------------------------------
-    // 4. MẦM CỎ TƠ MỀM MẠI TỰ NHIÊN (-500px -> 1400m)
-    // ------------------------------------------------------------
-    gCtx.fillStyle = '#a3e635';
-    gCtx.beginPath();
-    gCtx.moveTo(minX, GroundPlatform.getGroundY(minX, groundY) - 4);
-
-    for (let x = minX; x <= paddyStartX; x += 6) {
-      const gy = GroundPlatform.getGroundY(x, groundY);
-      let bladeH = 4 + Math.sin(x * 0.15) * 2 + ((Math.abs(x) * 7) % 3);
-
-      if (x > 1340) {
-        const fade = Math.max(0, 1 - (x - 1340) / 60);
-        bladeH = bladeH * fade;
-      }
-
-      gCtx.lineTo(x + 3, gy - 6 - bladeH);
-      gCtx.lineTo(x + 6, gy - 4);
-    }
-
-    gCtx.lineTo(paddyStartX, GroundPlatform.getGroundY(paddyStartX, groundY) + 4);
-    gCtx.lineTo(minX, GroundPlatform.getGroundY(minX, groundY) + 4);
-    gCtx.closePath();
-    gCtx.fill();
-
-    // Mầm cỏ bờ đê sau
-    if (maxX > paddyEndX) {
-      gCtx.beginPath();
-      gCtx.moveTo(paddyEndX, GroundPlatform.getGroundY(paddyEndX, groundY) - 4);
-      for (let x = paddyEndX; x <= maxX; x += 6) {
-        const gy = GroundPlatform.getGroundY(x, groundY);
-        let bladeH = 4 + Math.sin(x * 0.15) * 2 + ((Math.abs(x) * 7) % 3);
-        if (x < paddyEndX + 40) {
-          const fade = (x - paddyEndX) / 40;
-          bladeH = bladeH * fade;
-        }
-        gCtx.lineTo(x + 3, gy - 6 - bladeH);
-        gCtx.lineTo(x + 6, gy - 4);
-      }
-      gCtx.lineTo(maxX, GroundPlatform.getGroundY(maxX, groundY) + 4);
-      gCtx.lineTo(paddyEndX, GroundPlatform.getGroundY(paddyEndX, groundY) + 4);
-      gCtx.closePath();
-      gCtx.fill();
-    }
-
-    this.groundCanvas = c;
+    bCtx.restore();
   }
 }

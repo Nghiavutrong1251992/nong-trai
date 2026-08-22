@@ -8,51 +8,50 @@
  */
 
 import { Engine } from '../core/Engine';
+import { SkyManager } from './sky/SkyManager';
+import { WeatherManager } from './sky/WeatherManager';
 
 export class WorldRenderer {
+  public skyManager = new SkyManager();
+  public weatherManager = new WeatherManager();
+
   constructor(private engine: Engine) {}
 
   /**
-   * Vẽ nền bầu trời Gradient
+   * Cập nhật logic bầu trời & thời tiết (Mưa, bão giông, gió, sao băng)
    */
-  public renderSky(ctx: CanvasRenderingContext2D, width: number, groundY: number): void {
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
-    skyGrad.addColorStop(0, '#60a5fa');
-    skyGrad.addColorStop(0.5, '#93c5fd');
-    skyGrad.addColorStop(0.85, '#dbeafe');
-    skyGrad.addColorStop(1, '#fef9c3');
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, width, groundY);
+  public update(dt: number): void {
+    this.skyManager.update(dt);
+    this.weatherManager.update(dt, this.engine.width, this.engine.groundY, this.engine.cameraX);
   }
 
   /**
-   * Vẽ các đám mây mềm mại trôi nhẹ ở hậu cảnh
+   * Vẽ nền bầu trời Gradient & Mây & Mặt trời / Mặt trăng / Sao & Sấm Sét
    */
-  public renderAtmosphericClouds(ctx: CanvasRenderingContext2D, width: number, groundY: number, animTimer: number): void {
-    ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-    
-    const clouds = [
-      { xOffset: 80, y: groundY * 0.22, scale: 1.2, speed: 12 },
-      { xOffset: 450, y: groundY * 0.38, scale: 0.85, speed: 8 },
-      { xOffset: 880, y: groundY * 0.18, scale: 1.4, speed: 15 },
-      { xOffset: 1300, y: groundY * 0.32, scale: 0.95, speed: 10 }
-    ];
-
-    clouds.forEach(c => {
-      const cx = ((c.xOffset + animTimer * c.speed) % (width + 300)) - 150;
-      const cy = c.y;
-      
-      ctx.beginPath();
-      ctx.arc(cx, cy, 28 * c.scale, 0, Math.PI * 2);
-      ctx.arc(cx + 25 * c.scale, cy - 10 * c.scale, 35 * c.scale, 0, Math.PI * 2);
-      ctx.arc(cx + 60 * c.scale, cy - 5 * c.scale, 28 * c.scale, 0, Math.PI * 2);
-      ctx.arc(cx + 85 * c.scale, cy, 20 * c.scale, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    ctx.restore();
+  public renderSky(ctx: CanvasRenderingContext2D, width: number, groundY: number): void {
+    this.skyManager.renderSky(
+      ctx,
+      width,
+      groundY,
+      this.weatherManager.currentWeather,
+      this.weatherManager.cloudFrontProgress,
+      this.weatherManager.cloudTailProgress,
+      this.weatherManager.stormDarkness
+    );
+    this.weatherManager.renderLightning(ctx, width, groundY);
   }
+
+
+
+  /**
+   * Vẽ hiệu ứng thời tiết Tiền Cảnh (Mưa rơi, bọt nước bắn tung tóe, lá bay theo gió)
+   */
+  public renderWeatherForeground(ctx: CanvasRenderingContext2D, width: number, groundY: number): void {
+    this.weatherManager.renderForegroundEffects(ctx, width, groundY, this.engine.cameraX);
+  }
+
+
+
 
   /**
    * Vẽ Lưới Thước Đo & Đánh Số Phân Đoạn Bản Đồ (Map Ruler Grid Overlay)
@@ -91,9 +90,12 @@ export class WorldRenderer {
         let secName = `Đoạn ${secNumber}`;
         if (x < -200) secName = 'Đoạn 0A (Đồng cỏ xa)';
         else if (x < 0) secName = 'Đoạn 0B (Đồng cỏ)';
-        else if (x >= 400 && x < 1200) secName = `Đoạn ${secNumber} (Bờ Tre & Cỏ)`;
-        else if (x >= 1200 && x < 2000) secName = `Đoạn ${secNumber} (Ruộng Lúa)`;
-        else if (x >= 2000) secName = `Đoạn ${secNumber} (Bờ Đê Cuối)`;
+        else if (x >= 0 && x < 800) secName = `Đoạn ${secNumber} (Ao Cá Làng Quê)`;
+        else if (x >= 800 && x < 1200) secName = `Đoạn ${secNumber} (Lũy Tre & Chuối)`;
+        else if (x >= 1200 && x < 1800) secName = `Đoạn ${secNumber} (Mô Đất / Đồi Cỏ)`;
+        else if (x >= 1800 && x < 2600) secName = `Đoạn ${secNumber} (Ruộng Lúa Nước)`;
+        else if (x >= 2600) secName = `Đoạn ${secNumber} (Bờ Đê Cuối)`;
+
 
         // Badge trên không gian bầu trời
         ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';

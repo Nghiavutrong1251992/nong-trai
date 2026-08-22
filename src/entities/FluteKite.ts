@@ -10,7 +10,8 @@ export class FluteKite {
   public vx: number = 0;
   public vy: number = 0;
   public angle: number = 0;
-  public isActive: boolean = true; // Mặc định BẬT để luôn thấy diều bay lơ lửng
+  public isActive: boolean = false; // Mặc định TẮT
+
 
   public toggleActive(): boolean {
     this.isActive = !this.isActive;

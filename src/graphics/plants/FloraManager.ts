@@ -1,6 +1,11 @@
 /**
  * FloraManager.ts
- * Bộ điều phối hệ thống Thực Vật & Thửa Ruộng Lúa Nước (Kích thước 1/4: 660px)
+ * Bộ điều phối hệ thống Thực Vật & Cảnh Quan Làng Quê Mở Rộng:
+ * - Đoạn 1, 2, 3, 4 (X: 0m -> 800m): Ao Cá / Đầm Sen Làng Quê Nước Biếc
+ * - Đoạn 5, 6 (X: 800m -> 1200m): Cụm Đại Lũy Tre Xanh & Vườn Chuối Bờ Hồ
+ * - Đoạn 7, 8 (X: 1200m -> 1800m): Mô Đất / Đồi Cỏ Xanh Cao Ráo
+ * - Đoạn 9, 10, 11, 12, 13 (X: 1800m -> 2600m): Thửa Ruộng Lúa Nước Bạt Ngàn
+ * - Đoạn 14 (X: 2600m -> 2800m): Bờ Đê Cuối Bản Đồ
  */
 
 import { GroundPlatform } from './GroundPlatform';
@@ -8,6 +13,7 @@ import { WildGrass } from './WildGrass';
 import { RiceCrop } from './RiceCrop';
 import { BambooGrove } from './BambooGrove';
 import { BananaTree } from './BananaTree';
+import { FishPond } from './FishPond';
 
 export class FloraManager {
   public ground = new GroundPlatform();
@@ -15,38 +21,40 @@ export class FloraManager {
   public riceCrop = new RiceCrop();
   public bamboo = new BambooGrove();
   public banana = new BananaTree();
+  public fishPond = new FishPond();
 
-  public mapWidth = 2400; // Tổng chiều dài bản đồ làng quê gọn gàng
-  public paddyStartX = 1400; // Đoạn 8 (1400m)
-  public paddyEndX = 2200;   // Đoạn 11 (2200m)
+  public mapWidth = 2800; // Mở rộng 2800m chứa trọn vẹn 4 đoạn Ao Cá
+  public paddyStartX = 1800; // Đoạn 9 (1800m)
+  public paddyEndX = 2600;   // Đoạn 13 (2600m)
 
   constructor() {
-    // 1. Cụm Đại Lũy Tre Làng Cao Vút, dày dặn đan cài nhiều lớp (Đoạn 2: 200m -> 400m)
+    // 1. Cụm Đại Lũy Tre Làng Cao Vút (Đoạn 5, 6: 840m -> 1060m)
     this.bamboo.instances = [
-      { x: 230, scale: 1.05, variant: 'green',  isFlipped: true,  phase: 0.1 }, // Bụi tre xanh cao vút bên trái
-      { x: 275, scale: 1.32, variant: 'yellow', isFlipped: false, phase: 0.3 }, // Cụm tre già cao lớn uy nghi trung tâm
-      { x: 315, scale: 1.20, variant: 'green',  isFlipped: false, phase: 0.6 }, // Cụm tre xanh dày vươn cao
-      { x: 350, scale: 1.10, variant: 'yellow', isFlipped: true,  phase: 0.8 }, // Cụm tre vàng nứa đan bên phải
-      { x: 380, scale: 0.98, variant: 'green',  isFlipped: false, phase: 1.1 }  // Bụi tre xanh bên phải
+      { x: 860,  scale: 1.05, variant: 'green',  isFlipped: true,  phase: 0.1 },
+      { x: 910,  scale: 1.32, variant: 'yellow', isFlipped: false, phase: 0.3 },
+      { x: 960,  scale: 1.20, variant: 'green',  isFlipped: false, phase: 0.6 },
+      { x: 1010, scale: 1.10, variant: 'yellow', isFlipped: true,  phase: 0.8 },
+      { x: 1050, scale: 0.98, variant: 'green',  isFlipped: false, phase: 1.1 }
     ];
 
-    // 2. Vùng Đồng Cỏ Hoa Làng Quê (Đoạn 1-4: 20m -> 800m & Đoạn 12: 2220m -> 2380m)
-    this.wildGrass.initFlowers(20, 800);
+    // 2. Vùng Đồng Cỏ Hoa Làng Quê
+    this.wildGrass.initFlowers(-300, 1200);
 
-    // 3. Các cây chuối (Đoạn 3: 480m, 550m & Đoạn 6 trên gò cao: 1080m, 1150m)
+    // 3. Các cây chuối quanh bờ ao & trên đỉnh đồi cỏ
     this.banana.instances = [
-      { x: 480,  scale: 1.15, hasFruit: true,  isFlipped: false, phase: 0.2 },
-      { x: 550,  scale: 0.72, hasFruit: false, isFlipped: true,  phase: 0.6 },
-      { x: 1080, scale: 1.25, hasFruit: true,  isFlipped: false, phase: 1.1 },
-      { x: 1150, scale: 0.78, hasFruit: false, isFlipped: true,  phase: 1.5 }
+      { x: 1100, scale: 1.15, hasFruit: true,  isFlipped: false, phase: 0.2 },
+      { x: 1170, scale: 0.85, hasFruit: false, isFlipped: true,  phase: 0.6 },
+      { x: 1480, scale: 1.25, hasFruit: true,  isFlipped: false, phase: 1.1 }, // Trên đỉnh đồi cỏ
+      { x: 1550, scale: 0.78, hasFruit: false, isFlipped: true,  phase: 1.5 }  // Sườn đồi cỏ
     ];
 
-    // 4. Thửa Ruộng Lúa Nước (4 Đoạn: Đoạn 8, 9, 10, 11 từ 1400m -> 2200m)
+    // 4. Thửa Ruộng Lúa Nước (Đoạn 9-13: từ 1800m -> 2600m)
     this.riceCrop.initRiceField(this.paddyStartX, this.paddyEndX);
   }
 
-  public update(dt: number): void {
+  public update(dt: number, groundY: number = 480): void {
     this.riceCrop.update(dt);
+    this.fishPond.update(dt, groundY);
   }
 
   public renderBackgroundTrees(ctx: CanvasRenderingContext2D, groundY: number, animTimer: number, playerX?: number): void {
@@ -54,8 +62,9 @@ export class FloraManager {
     this.banana.render(ctx, groundY, animTimer, playerX);
   }
 
-  public renderGround(ctx: CanvasRenderingContext2D, width: number, height: number, groundY: number): void {
+  public renderGround(ctx: CanvasRenderingContext2D, width: number, height: number, groundY: number, animTimer: number = 0, playerX?: number): void {
     this.ground.render(ctx, this.mapWidth, height, groundY);
+    this.fishPond.render(ctx, groundY, animTimer, playerX);
   }
 
   /**
@@ -83,8 +92,20 @@ export class FloraManager {
     cameraX: number = 0,
     screenW: number = 1400
   ): void {
-    // 1. Cỏ dại hoa tươi trên đường cỏ mở rộng (-450m -> 2400m)
-    this.wildGrass.render(ctx, groundY, playerX, animTimer, -450, 2400);
+    // 1. Cỏ dại hoa tươi trên đường cỏ mở rộng (-450m -> 2800m), tự động né hồ cá và ruộng lúa
+    this.wildGrass.render(
+      ctx,
+      groundY,
+      playerX,
+      animTimer,
+      -450,
+      this.mapWidth,
+      this.fishPond.startX,
+      this.fishPond.endX,
+      this.paddyStartX,
+      this.paddyEndX
+    );
+
 
     // 2. Lớp lúa tiền cảnh (Đứng trước che ngang người chơi tạo độ sâu 2.5D ngập lúa)
     this.riceCrop.render(ctx, groundY, playerX, animTimer, cameraX, screenW, 'foreground');

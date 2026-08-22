@@ -172,9 +172,21 @@ export class InputController {
           btnGrid.textContent = this.engine.showMapRuler ? '📐 Thước Đo: BẬT [G]' : '📐 Thước Đo: TẮT [G]';
         }
       }
+      if (k === 't') {
+        cycleTimeOfDay();
+      }
+      if (k === 'y') {
+        cycleWeather();
+      }
       if (k === 'k') {
         const active = this.engine.fluteKite.toggleActive();
         this.engine.showToast(active ? '🪁 Đã thả Diều Sáo bay lên trời' : '🪁 Đã thu Diều Sáo');
+      }
+      if (k === 'f') {
+        const pond = this.engine.floraManager.fishPond;
+        pond.feedFish(this.engine.player.x, this.engine.groundY);
+        this.engine.sound.play('water');
+        this.engine.showToast('🐟 Đã rải thức ăn cho cá! Đàn cá đang ùa tới đớp mồi [F]');
       }
       if (k === 'm') {
         const isMuted = this.engine.sound.toggleMute();
@@ -184,6 +196,109 @@ export class InputController {
       }
 
     });
+
+
+    // Chuyển đổi Thời Tiết Trực Tiếp
+    const updateWeatherUI = () => {
+      const current = this.engine.worldRenderer.weatherManager.currentWeather;
+      document.querySelectorAll('.env-btn[data-weather]').forEach(btn => {
+        const w = (btn as HTMLElement).dataset.weather;
+        btn.classList.toggle('active', w === current);
+      });
+    };
+
+    document.querySelectorAll('.env-btn[data-weather]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const w = (btn as HTMLElement).dataset.weather as any;
+        if (w) {
+          this.engine.worldRenderer.weatherManager.setWeather(w);
+          const nameMap: Record<string, string> = {
+            clear: '☀️ Trời Nắng Đẹp',
+            windy: '🍃 Gió Đồng Lộng',
+            light_rain: '🌦️ Mưa Rào Nhỏ',
+            storm: '⛈️ Mưa Giông Sấm Sét'
+          };
+          this.engine.showToast(nameMap[w] || w);
+          updateWeatherUI();
+        }
+      });
+    });
+
+    // Chuyển đổi Mây Bầu Trời Trực Tiếp
+    const updateCloudsUI = () => {
+      const hasClouds = this.engine.worldRenderer.skyManager.hasClouds;
+      document.querySelectorAll('.env-btn[data-clouds]').forEach(btn => {
+        const c = (btn as HTMLElement).dataset.clouds === 'true';
+        btn.classList.toggle('active', c === hasClouds);
+      });
+    };
+
+    document.querySelectorAll('.env-btn[data-clouds]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const c = (btn as HTMLElement).dataset.clouds === 'true';
+        this.engine.worldRenderer.skyManager.hasClouds = c;
+        this.engine.showToast(c ? '☁️ Bầu trời: Có Mây Bồng Bềnh' : '✨ Bầu trời: Không Một Gợn Mây (Quang Mây)');
+        updateCloudsUI();
+      });
+    });
+
+    // Chuyển đổi Thời Khắc Trực Tiếp
+    const updateTimeUI = () => {
+      const current = this.engine.worldRenderer.skyManager.currentPeriod;
+      document.querySelectorAll('.env-btn[data-time]').forEach(btn => {
+        const t = (btn as HTMLElement).dataset.time;
+        btn.classList.toggle('active', t === current);
+      });
+    };
+
+    document.querySelectorAll('.env-btn[data-time]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = (btn as HTMLElement).dataset.time as any;
+        if (t) {
+          this.engine.worldRenderer.skyManager.setTimePeriod(t);
+          const nameMap: Record<string, string> = {
+            dawn: '🌅 Bình Minh Sớm Mai',
+            noon: '☀️ Ban Ngày Nắng Vàng',
+            sunset: '🌇 Hoàng Hôn Rực Rỡ',
+            night_moon: '🌙 Đêm Trăng Dịu Mát',
+            night_dark: '🌌 Đêm Không Trăng (Ngân Hà Rực Rỡ)'
+          };
+          this.engine.showToast(nameMap[t] || t);
+          updateTimeUI();
+        }
+      });
+    });
+
+    // Chuyển đổi Thời Tiết (Nắng / Gió / Mưa Rào / Mưa Giông) [Y]
+    const cycleWeather = () => {
+      const msg = this.engine.worldRenderer.weatherManager.cycleWeather();
+      this.engine.showToast(msg);
+      updateWeatherUI();
+    };
+    document.getElementById('btn-toggle-weather')?.addEventListener('click', cycleWeather);
+    document.getElementById('m-btn-weather')?.addEventListener('click', cycleWeather);
+
+    // Chuyển đổi Thời Gian [T]
+    const cycleTimeOfDay = () => {
+      const periods: Array<'dawn' | 'noon' | 'sunset' | 'night_moon' | 'night_dark'> = ['dawn', 'noon', 'sunset', 'night_moon', 'night_dark'];
+      const curIdx = periods.indexOf(this.engine.worldRenderer.skyManager.currentPeriod);
+      const nextP = periods[(curIdx + 1) % periods.length];
+      this.engine.worldRenderer.skyManager.setTimePeriod(nextP);
+      const nameMap: Record<string, string> = {
+        dawn: '🌅 Bình Minh Sớm Mai',
+        noon: '☀️ Ban Ngày Nắng Vàng',
+        sunset: '🌇 Hoàng Hôn Rực Rỡ',
+        night_moon: '🌙 Đêm Trăng Dịu Mát',
+        night_dark: '🌌 Đêm Không Trăng (Ngân Hà Rực Rỡ)'
+      };
+      this.engine.showToast(nameMap[nextP]);
+      updateTimeUI();
+    };
+    document.getElementById('btn-toggle-time')?.addEventListener('click', cycleTimeOfDay);
+    document.getElementById('m-btn-time')?.addEventListener('click', cycleTimeOfDay);
+
+
+
 
     // Bật / Tắt Phụ Đề Nhãn Tên Thú Nuôi [N]
     const toggleAnimalLabels = () => {
@@ -212,6 +327,7 @@ export class InputController {
         btnGrid.textContent = this.engine.showMapRuler ? '📐 Thước Đo: BẬT [G]' : '📐 Thước Đo: TẮT [G]';
       }
     });
+
 
     window.addEventListener('keyup', (e) => {
       const k = e.key.toLowerCase();

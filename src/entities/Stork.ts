@@ -18,7 +18,10 @@ export class Stork {
   public vx: number = 0;
   public vy: number = 0;
   public facing: number = 1; // 1: quay phải, -1: quay trái
-  public targetHeight: number = 72; // Chiều cao thanh mảnh, duyên dáng của con cò
+  public targetHeight: number = 42; // Thu nhỏ thêm 20% (42px) nhỏ nhắn, thanh thoát tự nhiên
+
+
+
 
   // Sprite Sheet 1: Đứng yên (12 frames)
   private idleSheet = new Image();

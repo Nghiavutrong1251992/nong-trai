@@ -386,7 +386,161 @@ export class SoundManager {
     osc.stop(t + 0.75);
   }
 
-  public play(name: 'harvest' | 'water' | 'click' | 'step' | 'coin' | 'kite' | string): void {
+  // ============================================================
+  // HỆ THỐNG ÂM THANH THỜI TIẾT (MƯA, GIÓ, SẤM SÉT, CHIM HÓT)
+  // ============================================================
+  private rainGainNode: GainNode | null = null;
+  private windGainNode: GainNode | null = null;
+  private noiseBuffer: AudioBuffer | null = null;
+
+  private initAmbientNodes(): void {
+    if (!this.ctx) return;
+
+    if (!this.noiseBuffer) {
+      // Tạo buffer 2 giây chứa White/Pink Noise dùng chung cho Mưa & Gió
+      const bufferSize = this.ctx.sampleRate * 2;
+      this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = this.noiseBuffer.getChannelData(0);
+      let lastOut = 0.0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        // Pink noise filter (1/f) tạo cảm giác mưa rào tự nhiên
+        const pink = (lastOut * 0.95) + (white * 0.05);
+        lastOut = pink;
+        data[i] = pink * 2.5;
+      }
+    }
+
+    if (!this.rainGainNode) {
+      this.rainGainNode = this.ctx.createGain();
+      this.rainGainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+
+      const rainFilter = this.ctx.createBiquadFilter();
+      rainFilter.type = 'lowpass';
+      rainFilter.frequency.setValueAtTime(1400, this.ctx.currentTime); // Lọc bớt tần số chói
+
+      const rainSource = this.ctx.createBufferSource();
+      rainSource.buffer = this.noiseBuffer;
+      rainSource.loop = true;
+      rainSource.connect(rainFilter);
+      rainFilter.connect(this.rainGainNode);
+      this.rainGainNode.connect(this.ctx.destination);
+      rainSource.start();
+    }
+
+    if (!this.windGainNode) {
+      this.windGainNode = this.ctx.createGain();
+      this.windGainNode.gain.setValueAtTime(0, this.ctx.currentTime);
+
+      const windFilter = this.ctx.createBiquadFilter();
+      windFilter.type = 'bandpass';
+      windFilter.frequency.setValueAtTime(320, this.ctx.currentTime); // Dải tần số gió u u
+      windFilter.Q.setValueAtTime(2.5, this.ctx.currentTime);
+
+      const windSource = this.ctx.createBufferSource();
+      windSource.buffer = this.noiseBuffer;
+      windSource.loop = true;
+      windSource.connect(windFilter);
+      windFilter.connect(this.windGainNode);
+      this.windGainNode.connect(this.ctx.destination);
+      windSource.start();
+    }
+  }
+
+  /**
+   * Đồng bộ âm lượng môi trường theo từng kiểu thời tiết (Chuyển biến nhỏ dần / to dần mượt mà 2s)
+   */
+  public setWeatherAmbient(weather: 'clear' | 'windy' | 'light_rain' | 'storm'): void {
+    if (!this.ctx || this.isMuted) return;
+    this.initAmbientNodes();
+    if (!this.rainGainNode || !this.windGainNode) return;
+
+    const t = this.ctx.currentTime;
+    if (weather === 'clear') {
+      this.rainGainNode.gain.setTargetAtTime(0, t, 1.8);
+      this.windGainNode.gain.setTargetAtTime(0, t, 1.8);
+    } else if (weather === 'windy') {
+      this.rainGainNode.gain.setTargetAtTime(0, t, 1.6);
+      this.windGainNode.gain.setTargetAtTime(0.20, t, 2.0);
+    } else if (weather === 'light_rain') {
+      this.rainGainNode.gain.setTargetAtTime(0.16, t, 2.0);
+      this.windGainNode.gain.setTargetAtTime(0.03, t, 1.6);
+    } else if (weather === 'storm') {
+      this.rainGainNode.gain.setTargetAtTime(0.30, t, 1.8);
+      this.windGainNode.gain.setTargetAtTime(0.25, t, 1.8);
+    }
+  }
+
+
+  /**
+   * Tiếng sấm rền vang (Thunder Rumble) chân thực nhiều tầng
+   */
+  public playThunder(): void {
+    this.initCtx();
+    if (!this.ctx || this.isMuted) return;
+    this.initAmbientNodes();
+
+    const t = this.ctx.currentTime;
+
+    // 1. Tiếng nổ sét rạch trời đanh thép (Initial Lightning Crack)
+    if (this.noiseBuffer) {
+      const crackSource = this.ctx.createBufferSource();
+      crackSource.buffer = this.noiseBuffer;
+      const crackFilter = this.ctx.createBiquadFilter();
+      crackFilter.type = 'lowpass';
+      crackFilter.frequency.setValueAtTime(650, t);
+      crackFilter.frequency.exponentialRampToValueAtTime(60, t + 2.5);
+
+      const crackGain = this.ctx.createGain();
+      crackGain.gain.setValueAtTime(0.65, t);
+      crackGain.gain.exponentialRampToValueAtTime(0.001, t + 2.6);
+
+      crackSource.connect(crackFilter);
+      crackFilter.connect(crackGain);
+      crackGain.connect(this.ctx.destination);
+      crackSource.start(t);
+      crackSource.stop(t + 2.7);
+    }
+
+    // 2. Tiếng sấm rền siêu trầm chính (Main Deep Sub-Bass Rumble 52Hz -> 22Hz)
+    const subOsc1 = this.ctx.createOscillator();
+    const subGain1 = this.ctx.createGain();
+    subOsc1.type = 'sawtooth';
+    subOsc1.frequency.setValueAtTime(58, t);
+    subOsc1.frequency.exponentialRampToValueAtTime(22, t + 2.8);
+
+    const subFilter1 = this.ctx.createBiquadFilter();
+    subFilter1.type = 'lowpass';
+    subFilter1.frequency.setValueAtTime(110, t);
+
+    subGain1.gain.setValueAtTime(0.55, t);
+    subGain1.gain.exponentialRampToValueAtTime(0.001, t + 3.0);
+
+    subOsc1.connect(subFilter1);
+    subFilter1.connect(subGain1);
+    subGain1.connect(this.ctx.destination);
+    subOsc1.start(t);
+    subOsc1.stop(t + 3.1);
+
+    // 3. Tiếng sấm rền vọng tầng 2 sau 0.25s (Echo Rumble)
+    const subOsc2 = this.ctx.createOscillator();
+    const subGain2 = this.ctx.createGain();
+    subOsc2.type = 'triangle';
+    subOsc2.frequency.setValueAtTime(42, t + 0.25);
+    subOsc2.frequency.exponentialRampToValueAtTime(18, t + 2.9);
+
+    subGain2.gain.setValueAtTime(0.001, t);
+    subGain2.gain.setValueAtTime(0.45, t + 0.25);
+    subGain2.gain.exponentialRampToValueAtTime(0.001, t + 3.0);
+
+    subOsc2.connect(subGain2);
+    subGain2.connect(this.ctx.destination);
+    subOsc2.start(t + 0.25);
+    subOsc2.stop(t + 3.1);
+  }
+
+
+  public play(name: 'harvest' | 'water' | 'click' | 'step' | 'coin' | 'kite' | 'thunder' | string): void {
     if (name === 'harvest' || name === 'coin') {
       this.playCoin();
     } else if (name === 'water') {
@@ -397,6 +551,9 @@ export class SoundManager {
       this.playWhack();
     } else if (name === 'kite') {
       this.playKiteFlute();
+    } else if (name === 'thunder') {
+      this.playThunder();
     }
   }
 }
+
