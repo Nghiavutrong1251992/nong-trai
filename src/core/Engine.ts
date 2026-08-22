@@ -256,6 +256,82 @@ export class Engine {
     };
     document.getElementById('btn-fullscreen')?.addEventListener('click', toggleFullscreen);
 
+    // ============================================================
+    // PWA PROGRESSIVE WEB APP INSTALL SYSTEM
+    // ============================================================
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    let deferredPrompt: any = null;
+    const btnInstallPwa = document.getElementById('btn-install-pwa');
+    const mBtnInstall = document.getElementById('m-btn-install');
+    const installModal = document.getElementById('install-modal');
+    const installText = document.getElementById('install-guide-text');
+    const btnTriggerInstall = document.getElementById('btn-trigger-pwa-install');
+    const btnCloseInstall = document.getElementById('btn-close-install');
+
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+
+    if (isStandalone) {
+      if (btnInstallPwa) btnInstallPwa.style.display = 'none';
+      if (mBtnInstall) mBtnInstall.style.display = 'none';
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (btnInstallPwa) btnInstallPwa.style.display = 'flex';
+      if (mBtnInstall) mBtnInstall.style.display = 'flex';
+    });
+
+    const openInstallGuide = () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult: any) => {
+          if (choiceResult.outcome === 'accepted') {
+            this.showToast('🎉 Đang cài đặt game ra màn hình chính...');
+            if (btnInstallPwa) btnInstallPwa.style.display = 'none';
+            if (mBtnInstall) mBtnInstall.style.display = 'none';
+          }
+          deferredPrompt = null;
+        });
+        return;
+      }
+
+      if (installModal && installText) {
+        installModal.style.display = 'block';
+        if (isIos) {
+          installText.innerHTML = `
+            <div style="margin-bottom: 8px; color: #fde047; font-weight: 700;">Hướng dẫn cài đặt trên iPhone / iPad:</div>
+            1. Bấm vào nút <b>Chia sẻ (Share) 📤</b> ở thanh công cụ dưới đáy Safari.<br>
+            2. Cuộn xuống và chọn <b>"Thêm vào Màn hình chính" (Add to Home Screen) ➕</b>.<br>
+            3. Mở game từ icon mới ngoài màn hình 👉 <b>Luôn Full Màn Hình 100%</b>!
+          `;
+          if (btnTriggerInstall) btnTriggerInstall.style.display = 'none';
+        } else {
+          installText.innerHTML = `
+            Bấm vào nút <b>"Cài Đặt Ngay"</b> hoặc mở Menu trình duyệt (dấu 3 chấm) 👉 chọn <b>"Cài đặt ứng dụng"</b> hoặc <b>"Thêm vào màn hình chính"</b> để chơi game toàn màn hình không có thanh địa chỉ!
+          `;
+          if (btnTriggerInstall) {
+            btnTriggerInstall.style.display = 'block';
+            btnTriggerInstall.onclick = () => {
+              installModal.style.display = 'none';
+              if (deferredPrompt) deferredPrompt.prompt();
+              else toggleFullscreen();
+            };
+          }
+        }
+      }
+    };
+
+    btnInstallPwa?.addEventListener('click', openInstallGuide);
+    mBtnInstall?.addEventListener('click', openInstallGuide);
+    btnCloseInstall?.addEventListener('click', () => {
+      if (installModal) installModal.style.display = 'none';
+    });
+
     // Mobile Menu Dropdown Toggle
     const mobileDropdown = document.getElementById('mobile-dropdown');
     document.getElementById('btn-mobile-menu')?.addEventListener('click', (e) => {

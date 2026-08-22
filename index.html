@@ -6,7 +6,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#08110b">
-  <title>🌾 Làng Quê Việt — Ký Sự Đồng Quê 2D</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/assets/farmer_boy_artwork.png">
+  <meta name="apple-mobile-web-app-title" content="Làng Quê Việt">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-touch-fullscreen" content="yes">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -377,16 +382,32 @@
       <button class="top-btn desktop-only-btn" id="tab-studio">🎬 Studio</button>
       
       <!-- Mobile Quick Menu & Fullscreen Toggle -->
+      <button class="top-btn" id="btn-install-pwa" style="color: #facc15; border-color: #facc15; display: flex;" title="Cài Đặt Ứng Dụng">📲 Cài App</button>
       <button class="top-btn icon-top-btn" id="btn-fullscreen" title="Toàn Màn Hình" style="color: #38bdf8; border-color: #38bdf8;">⛶</button>
       <button class="top-btn icon-top-btn" id="btn-mobile-menu" title="Cài Đặt">⚙️</button>
     </div>
 
     <!-- Mobile Dropdown Menu -->
     <div id="mobile-dropdown" class="glass-panel">
+      <button class="top-btn" id="m-btn-install" style="color: #facc15; border-color: #facc15; justify-content: center;">📲 Cài Đặt Ứng Dụng (Full Màn)</button>
       <button class="top-btn active" id="m-btn-grid" style="color: #38bdf8; justify-content: center;">📐 Thước Đo Bản Đồ</button>
       <button class="top-btn" id="m-btn-music" style="color: #4ade80; justify-content: center;">🎵 Bật / Tắt Nhạc</button>
       <button class="top-btn" id="m-tab-studio" style="justify-content: center;">🎬 Studio Đo Hoạt Ảnh</button>
       <button class="top-btn" id="m-btn-reset" style="color: #f87171; border-color: #f87171; justify-content: center;">🔄 Đặt Lại Bản Đồ</button>
+    </div>
+
+    <!-- PWA Install Guide Modal -->
+    <div id="install-modal" class="glass-panel" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 250; padding: 20px 24px; max-width: 380px; width: 90vw; box-shadow: 0 12px 40px rgba(0,0,0,0.8); border: 1.5px solid rgba(250, 204, 21, 0.4);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="font-size: 16px; font-weight: 800; color: #fde047;">📲 Cài Đặt Game Vào Màn Hình</div>
+        <button id="btn-close-install" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; padding: 4px;">✕</button>
+      </div>
+      <div id="install-guide-text" style="font-size: 13px; color: #cbd5e1; line-height: 1.6; margin-bottom: 16px;">
+        Cài đặt game ra màn hình chính giúp game **luôn luôn mở toàn màn hình (Full Screen)** và chạy mượt mà không cần thanh địa chỉ trình duyệt!
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="top-btn" id="btn-trigger-pwa-install" style="background: #eab308; color: #0f172a; border-color: #facc15; font-weight: 800;">Cài Đặt Ngay</button>
+      </div>
     </div>
 
     <!-- Notification Toast -->
