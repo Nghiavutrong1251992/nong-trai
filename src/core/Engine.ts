@@ -296,33 +296,86 @@ export class Engine {
     });
 
     // ============================================================
-    // HỆ THỐNG ĐIỀU KHIỂN CẢM ỨNG ĐA CHẠM (POINTER EVENTS)
+    // VIRTUAL THUMB JOYSTICK (KÉO TRƯỢT SANG TRÁI / PHẢI)
     // ============================================================
-    const bindTouchControl = (btnId: string, onDown: () => void, onUp: () => void) => {
-      const btn = document.getElementById(btnId);
-      if (!btn) return;
+    const joyBase = document.getElementById('joystick-base');
+    const joyKnob = document.getElementById('joystick-knob');
 
-      const handleDown = (e: PointerEvent | Event) => {
-        e.preventDefault();
-        btn.classList.add('pressed');
-        onDown();
+    if (joyBase && joyKnob) {
+      let activePointerId: number | null = null;
+      let startX = 0;
+      const maxDrag = 28; // Giới hạn biên độ kéo núm tròn px
+
+      const updateKnob = (clientX: number) => {
+        let dx = clientX - startX;
+        dx = Math.max(-maxDrag, Math.min(maxDrag, dx));
+        joyKnob.style.transform = `translate(${dx}px, -50%)`;
+        joyKnob.style.transition = 'none';
+
+        const threshold = 6;
+        if (dx < -threshold) {
+          this.input.left = true;
+          this.input.right = false;
+        } else if (dx > threshold) {
+          this.input.right = true;
+          this.input.left = false;
+        } else {
+          this.input.left = false;
+          this.input.right = false;
+        }
       };
-      const handleUp = (e: PointerEvent | Event) => {
-        e.preventDefault();
-        btn.classList.remove('pressed');
-        onUp();
+
+      const resetKnob = () => {
+        activePointerId = null;
+        joyKnob.style.transition = 'transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+        joyKnob.style.transform = `translate(0px, -50%)`;
+        this.input.left = false;
+        this.input.right = false;
+        joyBase.classList.remove('active');
       };
 
-      btn.addEventListener('pointerdown', handleDown as EventListener);
-      btn.addEventListener('pointerup', handleUp as EventListener);
-      btn.addEventListener('pointercancel', handleUp as EventListener);
-      btn.addEventListener('pointerleave', handleUp as EventListener);
-    };
+      joyBase.addEventListener('pointerdown', (e: PointerEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        activePointerId = e.pointerId;
+        joyBase.setPointerCapture(e.pointerId);
+        joyBase.classList.add('active');
+        const rect = joyBase.getBoundingClientRect();
+        startX = rect.left + rect.width / 2;
+        updateKnob(e.clientX);
+      });
 
-    // Điều hướng Trái / Phải / Nhảy đa chạm
-    bindTouchControl('btn-left', () => { this.input.left = true; }, () => { this.input.left = false; });
-    bindTouchControl('btn-right', () => { this.input.right = true; }, () => { this.input.right = false; });
-    bindTouchControl('btn-jump', () => { this.input.jump = true; }, () => { this.input.jump = false; });
+      joyBase.addEventListener('pointermove', (e: PointerEvent) => {
+        if (activePointerId !== e.pointerId) return;
+        e.preventDefault();
+        updateKnob(e.clientX);
+      });
+
+      joyBase.addEventListener('pointerup', (e: PointerEvent) => {
+        if (activePointerId === e.pointerId) resetKnob();
+      });
+      joyBase.addEventListener('pointercancel', (e: PointerEvent) => {
+        if (activePointerId === e.pointerId) resetKnob();
+      });
+    }
+
+    // Nút Nhảy ⬆ (Right Thumb)
+    const btnJump = document.getElementById('btn-jump');
+    if (btnJump) {
+      btnJump.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        btnJump.classList.add('pressed');
+        this.input.jump = true;
+      });
+      const releaseJump = (e: Event) => {
+        e.preventDefault();
+        btnJump.classList.remove('pressed');
+        this.input.jump = false;
+      };
+      btnJump.addEventListener('pointerup', releaseJump);
+      btnJump.addEventListener('pointercancel', releaseJump);
+      btnJump.addEventListener('pointerleave', releaseJump);
+    }
 
     // Nút Q: Rút / Đổi / Cất dụng cụ
     const btnCycle = document.getElementById('btn-cycle-tool');
@@ -599,18 +652,18 @@ export class Engine {
     // 3. HUD THÔNG TIN CỐ ĐỊNH TRÊN MÀN HÌNH (Screen Space)
     // ------------------------------------------------------------
     ctx.save();
-    const isSmall = this.width < 768;
-    const hudW = isSmall ? Math.min(270, this.width - 24) : 320;
-    const hudH = isSmall ? 48 : 56;
-    const hudX = isSmall ? 12 : 20;
-    const hudY = isSmall ? 52 : 68;
+    const isMobile = this.width < 900 || this.height < 560;
+    const hudW = isMobile ? Math.min(225, this.width - 90) : 320;
+    const hudH = isMobile ? 38 : 56;
+    const hudX = isMobile ? 10 : 20;
+    const hudY = isMobile ? 10 : 68;
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
     ctx.beginPath();
-    ctx.roundRect(hudX, hudY, hudW, hudH, 12);
+    ctx.roundRect(hudX, hudY, hudW, hudH, isMobile ? 10 : 12);
     ctx.fill();
-    ctx.strokeStyle = this.showMapRuler ? '#38bdf8' : 'rgba(255, 255, 255, 0.15)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = this.showMapRuler ? '#38bdf8' : 'rgba(255, 255, 255, 0.18)';
+    ctx.lineWidth = 1.2;
     ctx.stroke();
 
     let currentSecLabel = 'Đoạn 1';
@@ -624,16 +677,16 @@ export class Engine {
     const inPaddy = this.player.x >= this.floraManager.paddyStartX && this.player.x <= this.floraManager.paddyEndX;
 
     ctx.fillStyle = inPaddy ? '#38bdf8' : '#fde047';
-    ctx.font = isSmall ? 'bold 11px Outfit, sans-serif' : 'bold 13px Outfit, sans-serif';
+    ctx.font = isMobile ? 'bold 10px Outfit, sans-serif' : 'bold 13px Outfit, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`📍 [ ${currentSecLabel.toUpperCase()} ] · X: ${Math.round(this.player.x)}m / ${this.mapWidth}m`, hudX + 12, hudY + (isSmall ? 18 : 20));
+    ctx.fillText(`📍 [ ${currentSecLabel.toUpperCase()} ] · X: ${Math.round(this.player.x)}m / ${this.mapWidth}m`, hudX + 10, hudY + (isMobile ? 14 : 20));
 
     const bananaCount = this.player.carriedBananas.length;
-    const bananaText = bananaCount > 0 ? ` · 🎋 Chuối: ${bananaCount}` : '';
+    const bananaText = bananaCount > 0 ? ` · 🎋 ${bananaCount}` : '';
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = isSmall ? '600 10px Outfit, sans-serif' : '600 11px Outfit, sans-serif';
-    ctx.fillText(`🌾 Thóc: ${this.floraManager.riceCrop.harvestedGrains}${bananaText} · [E] Thao tác`, hudX + 12, hudY + (isSmall ? 36 : 40));
+    ctx.font = isMobile ? '600 9.5px Outfit, sans-serif' : '600 11px Outfit, sans-serif';
+    ctx.fillText(`🌾 Thóc: ${this.floraManager.riceCrop.harvestedGrains}${bananaText} · [E] Thao tác`, hudX + 10, hudY + (isMobile ? 28 : 40));
     ctx.restore();
   }
 
@@ -680,24 +733,29 @@ export class Engine {
       ctx.stroke();
 
       // 2. Thẻ Tiêu Đề Đoạn ở trên cao (Top Section Badge)
+      const isMobile = this.width < 900 || this.height < 560;
+      const badgeY = isMobile ? 48 : 75;
+      const badgeW = isMobile ? 120 : 150;
+      const badgeH = isMobile ? 38 : 48;
+
       ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
       ctx.beginPath();
-      ctx.roundRect(midX - 75, 75, 150, 48, 8);
+      ctx.roundRect(midX - badgeW / 2, badgeY, badgeW, badgeH, 8);
       ctx.fill();
       ctx.strokeStyle = sec.col;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.stroke();
 
       // Text tiêu đề đoạn
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px Outfit, sans-serif';
+      ctx.font = isMobile ? 'bold 10px Outfit, sans-serif' : 'bold 12px Outfit, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`Đoạn ${sec.id}: ${sec.icon} ${sec.label}`, midX, 94);
+      ctx.fillText(`Đoạn ${sec.id}: ${sec.icon} ${sec.label}`, midX, badgeY + (isMobile ? 15 : 19));
 
       ctx.fillStyle = sec.col;
-      ctx.font = 'bold 11px Outfit, sans-serif';
-      ctx.fillText(`${sec.start}m ➔ ${sec.end}m (${width}m)`, midX, 112);
+      ctx.font = isMobile ? 'bold 9px Outfit, sans-serif' : 'bold 11px Outfit, sans-serif';
+      ctx.fillText(`${sec.start}m ➔ ${sec.end}m (${width}m)`, midX, badgeY + (isMobile ? 29 : 37));
 
       // 3. Vạch thước đo tọa độ dọc mặt đất
       const gy = groundY;
