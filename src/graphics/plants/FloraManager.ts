@@ -49,9 +49,9 @@ export class FloraManager {
     this.riceCrop.update(dt);
   }
 
-  public renderBackgroundTrees(ctx: CanvasRenderingContext2D, groundY: number, animTimer: number): void {
+  public renderBackgroundTrees(ctx: CanvasRenderingContext2D, groundY: number, animTimer: number, playerX?: number): void {
     this.bamboo.render(ctx, groundY, animTimer);
-    this.banana.render(ctx, groundY, animTimer);
+    this.banana.render(ctx, groundY, animTimer, playerX);
   }
 
   public renderGround(ctx: CanvasRenderingContext2D, width: number, height: number, groundY: number): void {
@@ -90,7 +90,28 @@ export class FloraManager {
     this.riceCrop.render(ctx, groundY, playerX, animTimer, cameraX, screenW, 'foreground');
   }
 
-  // TƯƠNG TÁC NÔNG NGHIỆP
+  // TƯƠNG TÁC CÂY CHUỐI (ĐÀO & BỨNG TRỒNG)
+  public findNearbyBanana(playerX: number, maxDist: number = 75) {
+    return this.banana.findNearby(playerX, maxDist);
+  }
+
+  public digUpBanana(playerX: number): import('./BananaTree').BananaInstance | null {
+    const nearby = this.banana.findNearby(playerX, 75);
+    if (nearby) {
+      return this.banana.removeAt(nearby.index);
+    }
+    return null;
+  }
+
+  public removeBanana(banana: import('./BananaTree').BananaInstance): boolean {
+    return this.banana.removeBanana(banana);
+  }
+
+  public plantBanana(playerX: number, template?: Partial<import('./BananaTree').BananaInstance>): import('./BananaTree').BananaInstance {
+    return this.banana.plantAt(playerX, template);
+  }
+
+  // TƯƠNG TÁC NÔNG NGHIỆP RUỘNG LÚA
   public plantSeedling(playerX: number, groundY: number): boolean {
     return this.riceCrop.plantSeedling(playerX, groundY);
   }

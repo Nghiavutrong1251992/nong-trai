@@ -278,6 +278,21 @@ export class RiceCrop {
     }
   }
 
+  /**
+   * Khôi phục trạng thái sinh trưởng của các bụi lúa từ Save Game
+   */
+  public loadSavedPlants(savedPlants: Array<{ id: number; x: number; stage: string; growthTimer: number; watered: boolean; layer: 'back' | 'mid' | 'front' }>): void {
+    if (!savedPlants || savedPlants.length === 0) return;
+    for (const sp of savedPlants) {
+      const existing = this.plants.find(p => p.id === sp.id || Math.abs(p.x - sp.x) < 3);
+      if (existing) {
+        existing.stage = sp.stage as RiceGrowthStage;
+        existing.growthTimer = sp.growthTimer;
+        existing.watered = sp.watered;
+      }
+    }
+  }
+
   // ============================================================
   // CẬP NHẬT SINH TRƯỞNG & HIỆU ỨNG HẠT VÀNG
   // ============================================================

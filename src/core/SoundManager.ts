@@ -54,10 +54,12 @@ export class SoundManager {
       window.removeEventListener('click', startAudio);
       window.removeEventListener('keydown', startAudio);
       window.removeEventListener('touchstart', startAudio);
+      window.removeEventListener('pointerdown', startAudio);
     };
     window.addEventListener('click', startAudio);
     window.addEventListener('keydown', startAudio);
     window.addEventListener('touchstart', startAudio);
+    window.addEventListener('pointerdown', startAudio);
   }
 
   private initCtx(): void {

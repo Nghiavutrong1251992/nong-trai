@@ -1,6 +1,7 @@
 import { CharacterAnimator } from '../graphics/renderers/CharacterAnimator';
 import { SoundManager } from '../core/SoundManager';
 import { GroundPlatform } from '../graphics/plants/GroundPlatform';
+import { BananaInstance } from '../graphics/plants/BananaTree';
 
 export class Player {
   public x: number = 240;
@@ -17,6 +18,9 @@ export class Player {
   public speed: number = 190;
   public jumpForce: number = -380;
   public actionTimer: number = 0;
+
+  // Cây chuối đã bứng mang theo trong túi
+  public carriedBananas: BananaInstance[] = [];
 
   // RPG & Farming Stats
   public hp: number = 100;

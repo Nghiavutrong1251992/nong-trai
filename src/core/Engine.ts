@@ -3,6 +3,8 @@ import { Player } from '../entities/Player';
 import { Buffalo } from '../entities/Buffalo';
 import { VegetableGirl } from '../entities/VegetableGirl';
 import { FloraManager } from '../graphics/plants/FloraManager';
+import { BananaInstance } from '../graphics/plants/BananaTree';
+import { SaveManager } from './SaveManager';
 
 export class Engine {
   private canvas!: HTMLCanvasElement;
@@ -17,6 +19,10 @@ export class Engine {
   private buffalo = new Buffalo(560, 480);
   private vegetableGirl = new VegetableGirl(820, 480);
   public floraManager = new FloraManager();
+
+  // Trạng thái đang cuốc bứng cây chuối (Chờ hết hành động cuốc mới xóa cây)
+  private pendingDigBanana: { banana: BananaInstance; targetX: number } | null = null;
+  private autoSaveTimer: number = 0;
 
   public currentMode: 'map1' | 'studio' = 'map1'; // Mặc định mở Map 1 Làng Quê
   private groundY: number = 480;
@@ -47,12 +53,57 @@ export class Engine {
     this.resizeCanvas();
 
     this.bindEvents();
-    this.player.x = 450;
+
+    // 1. Tải và phục hồi dữ liệu thế giới từ localStorage
+    const saved = SaveManager.load();
+    if (saved) {
+      if (saved.bananas && Array.isArray(saved.bananas) && saved.bananas.length > 0) {
+        this.floraManager.banana.instances = saved.bananas;
+      }
+      if (saved.player) {
+        this.player.x = saved.player.x ?? 450;
+        this.player.carriedBananas = saved.player.carriedBananas ?? [];
+        this.player.coins = saved.player.coins ?? 250;
+      }
+      if (saved.riceCrop) {
+        this.floraManager.riceCrop.harvestedGrains = saved.riceCrop.harvestedGrains ?? 0;
+        if (saved.riceCrop.plants) {
+          this.floraManager.riceCrop.loadSavedPlants(saved.riceCrop.plants);
+        }
+      }
+      this.showToast('💾 Đã khôi phục vị trí cây trồng & thế giới từ lần chơi trước!');
+    } else {
+      this.player.x = 450;
+      this.showToast('🌾 Không gian sạch sẵn sàng để xây dựng Cỏ & Cây!');
+    }
     this.player.y = this.groundY;
 
-    this.showToast('🌾 Không gian sạch sẵn sàng để xây dựng Cỏ & Cây!');
+    // Tự động lưu tức thì trước khi reload hoặc đóng tab
+    window.addEventListener('beforeunload', () => this.saveCurrentStateImmediate());
 
     requestAnimationFrame((t) => this.loop(t));
+  }
+
+  public saveCurrentState(): void {
+    SaveManager.debouncedSave(
+      this.player.x,
+      this.player.carriedBananas,
+      this.player.coins,
+      this.floraManager.banana.instances,
+      this.floraManager.riceCrop.harvestedGrains,
+      this.floraManager.riceCrop.plants
+    );
+  }
+
+  public saveCurrentStateImmediate(): void {
+    SaveManager.save(
+      this.player.x,
+      this.player.carriedBananas,
+      this.player.coins,
+      this.floraManager.banana.instances,
+      this.floraManager.riceCrop.harvestedGrains,
+      this.floraManager.riceCrop.plants
+    );
   }
 
   private resizeCanvas(): void {
@@ -102,6 +153,14 @@ export class Engine {
       tabStudio.classList.add('active');
       tabMap1?.classList.remove('active');
       this.showToast('🎬 Đã chuyển sang Studio So Sánh Hoạt Ảnh');
+    });
+
+    // Nút Đặt Lại Thế Giới (Reset Game Save)
+    document.getElementById('btn-reset-world')?.addEventListener('click', () => {
+      if (confirm('Bạn có muốn xóa dữ liệu đã lưu và đặt lại vị trí cây chuối, ruộng lúa về mặc định ban đầu không?')) {
+        SaveManager.clearSave();
+        location.reload();
+      }
     });
 
     window.addEventListener('keydown', (e) => {
@@ -181,55 +240,175 @@ export class Engine {
       if (btnMute) btnMute.textContent = isMuted ? '🔇 Bật Nhạc [M]' : '🎵 Nhạc Làng Quê [M]';
     });
 
-    // Mobile / Screen Touch Buttons
-    document.getElementById('btn-left')?.addEventListener('touchstart', (e) => { e.preventDefault(); this.input.left = true; });
-    document.getElementById('btn-left')?.addEventListener('touchend', (e) => { e.preventDefault(); this.input.left = false; });
-    document.getElementById('btn-right')?.addEventListener('touchstart', (e) => { e.preventDefault(); this.input.right = true; });
-    document.getElementById('btn-right')?.addEventListener('touchend', (e) => { e.preventDefault(); this.input.right = false; });
-    document.getElementById('btn-jump')?.addEventListener('touchstart', (e) => { e.preventDefault(); this.input.jump = true; });
-    document.getElementById('btn-jump')?.addEventListener('touchend', (e) => { e.preventDefault(); this.input.jump = false; });
+    // Bật / Tắt Toàn Màn Hình (Fullscreen)
+    const toggleFullscreen = () => {
+      const doc = document as any;
+      if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
+        const docEl = document.documentElement as any;
+        if (docEl.requestFullscreen) docEl.requestFullscreen();
+        else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+        this.showToast('⛶ Đã mở chế độ Toàn Màn Hình');
+      } else {
+        if (doc.exitFullscreen) doc.exitFullscreen();
+        else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+        this.showToast('⛶ Đã thoát chế độ Toàn Màn Hình');
+      }
+    };
+    document.getElementById('btn-fullscreen')?.addEventListener('click', toggleFullscreen);
+
+    // Mobile Menu Dropdown Toggle
+    const mobileDropdown = document.getElementById('mobile-dropdown');
+    document.getElementById('btn-mobile-menu')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mobileDropdown?.classList.toggle('open');
+    });
+    window.addEventListener('click', () => {
+      mobileDropdown?.classList.remove('open');
+    });
+
+    // Mobile Menu Items
+    document.getElementById('m-btn-grid')?.addEventListener('click', () => {
+      this.showMapRuler = !this.showMapRuler;
+      this.showToast(this.showMapRuler ? '📐 Đã BẬT thước đo bản đồ' : '📐 Đã TẮT thước đo');
+      document.getElementById('m-btn-grid')?.classList.toggle('active', this.showMapRuler);
+    });
+
+    document.getElementById('m-btn-music')?.addEventListener('click', () => {
+      const isMuted = this.sound.toggleMute();
+      this.showToast(isMuted ? '🔇 Đã tắt nhạc' : '🎵 Đã bật nhạc làng quê');
+    });
+
+    document.getElementById('m-tab-studio')?.addEventListener('click', () => {
+      this.currentMode = this.currentMode === 'studio' ? 'map1' : 'studio';
+      this.showToast(this.currentMode === 'studio' ? '🎬 Đã mở Studio Đo Hoạt Ảnh' : '🌾 Đã trở lại Làng Quê 2D');
+    });
+
+    document.getElementById('m-btn-reset')?.addEventListener('click', () => {
+      if (confirm('Bạn có muốn xóa dữ liệu đã lưu và đặt lại vị trí cây chuối, ruộng lúa về mặc định ban đầu không?')) {
+        SaveManager.clearSave();
+        location.reload();
+      }
+    });
+
+    // Tắt bảng thông báo xoay màn hình khi người dùng chọn tiếp tục
+    document.getElementById('btn-dismiss-orient')?.addEventListener('click', () => {
+      document.getElementById('orientation-overlay')?.classList.remove('active');
+    });
+
+    // ============================================================
+    // HỆ THỐNG ĐIỀU KHIỂN CẢM ỨNG ĐA CHẠM (POINTER EVENTS)
+    // ============================================================
+    const bindTouchControl = (btnId: string, onDown: () => void, onUp: () => void) => {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+
+      const handleDown = (e: PointerEvent | Event) => {
+        e.preventDefault();
+        btn.classList.add('pressed');
+        onDown();
+      };
+      const handleUp = (e: PointerEvent | Event) => {
+        e.preventDefault();
+        btn.classList.remove('pressed');
+        onUp();
+      };
+
+      btn.addEventListener('pointerdown', handleDown as EventListener);
+      btn.addEventListener('pointerup', handleUp as EventListener);
+      btn.addEventListener('pointercancel', handleUp as EventListener);
+      btn.addEventListener('pointerleave', handleUp as EventListener);
+    };
+
+    // Điều hướng Trái / Phải / Nhảy đa chạm
+    bindTouchControl('btn-left', () => { this.input.left = true; }, () => { this.input.left = false; });
+    bindTouchControl('btn-right', () => { this.input.right = true; }, () => { this.input.right = false; });
+    bindTouchControl('btn-jump', () => { this.input.jump = true; }, () => { this.input.jump = false; });
 
     // Nút Q: Rút / Đổi / Cất dụng cụ
-    document.getElementById('btn-cycle-tool')?.addEventListener('click', () => {
+    const btnCycle = document.getElementById('btn-cycle-tool');
+    btnCycle?.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      btnCycle.classList.add('pressed');
       const res = this.player.cycleTool();
       this.showToast(res.label);
       this.updateActionButtonsUI();
     });
+    btnCycle?.addEventListener('pointerup', () => btnCycle.classList.remove('pressed'));
+    btnCycle?.addEventListener('pointercancel', () => btnCycle.classList.remove('pressed'));
 
-    // Nút E: Tiến hành dùng dụng cụ
-    document.getElementById('btn-use-tool')?.addEventListener('click', () => {
+    // Nút E: Tiến hành dùng dụng cụ / Bứng / Trồng chuối / Cấy / Gặt
+    const btnUse = document.getElementById('btn-use-tool');
+    btnUse?.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      btnUse.classList.add('pressed');
       this.handleUseTool();
     });
+    btnUse?.addEventListener('pointerup', () => btnUse.classList.remove('pressed'));
+    btnUse?.addEventListener('pointercancel', () => btnUse.classList.remove('pressed'));
 
     this.updateActionButtonsUI();
   }
 
   private handleUseTool(): void {
-    // 1. Tương tác trực tiếp trên thửa ruộng lúa nước (x: 1430px -> 2120px)
-    if (this.player.x >= 1430 && this.player.x <= 2120) {
-      // Ưu tiên 1: Gặt lúa chín
+    if (this.player.actionTimer > 0) return;
+
+    // 1. ƯU TIÊN 1: TƯƠNG TÁC BỨNG CÂY CHUỐI NẾU ĐỨNG GẦN GỐC CÂY
+    const nearbyBanana = this.floraManager.findNearbyBanana(this.player.x, 75);
+    if (nearbyBanana) {
+      nearbyBanana.banana.isBeingDug = true;
+      this.pendingDigBanana = { banana: nearbyBanana.banana, targetX: this.player.x };
+      this.player.state = 'hoe';
+      this.player.actionTimer = 2.4; // Thời gian thực hiện trọn vẹn động tác cuốc đất
+      this.player.animTimer = 0;
+      this.sound.playWhack();
+      this.showToast('⛏️ Đang cuốc bứng cây chuối... Hãy đợi hoàn tất động tác!');
+      this.updateActionButtonsUI();
+      return;
+    }
+
+    // 2. ƯU TIÊN 2: TRỒNG CÂY CHUỐI NẾU ĐANG MANG CÂY TRONG TÚI (VÀ KHÔNG Ở GIỮA RUỘNG LÚA SÂU)
+    const inDeepPaddy = this.player.x >= this.floraManager.paddyStartX + 30 && this.player.x <= this.floraManager.paddyEndX - 30;
+    if (this.player.carriedBananas.length > 0 && !inDeepPaddy) {
+      const tree = this.player.carriedBananas.pop()!;
+      this.floraManager.plantBanana(this.player.x, tree);
+      this.player.state = 'hoe';
+      this.player.actionTimer = 1.8;
+      this.player.animTimer = 0;
+      this.sound.playWhack();
+      this.showToast(`🌱 Đã trồng cây chuối xuống đất thành công tại vị trí ${Math.round(this.player.x)}m!`);
+      this.updateActionButtonsUI();
+      this.saveCurrentState();
+      return;
+    }
+
+    // 3. ƯU TIÊN 3: Tương tác trực tiếp trên thửa ruộng lúa nước (x: 1400px -> 2200px)
+    if (this.player.x >= 1400 && this.player.x <= 2200) {
+      // Ưu tiên 3a: Gặt lúa chín
       const harvestResult = this.floraManager.harvestNearbyRice(this.player.x);
       if (harvestResult.harvested) {
         this.sound.play('harvest');
         this.showToast(`🌾 Gặt thành công ${harvestResult.count} khóm lúa chín vàng! (+${harvestResult.count * 10} Thóc)`);
+        this.saveCurrentState();
         return;
       }
 
-      // Ưu tiên 2: Cấy mạ non vào vị trí đất trống
+      // Ưu tiên 3b: Cấy mạ non vào vị trí đất trống
       const planted = this.floraManager.plantSeedling(this.player.x, this.groundY);
       if (planted) {
         this.sound.play('click');
         this.showToast(`🌱 Đã cấy một khóm mạ non xanh tươi xuống ruộng!`);
+        this.saveCurrentState();
         return;
       }
     }
 
-    // 2. Dùng công cụ tiêu chuẩn
+    // 4. Dùng công cụ tiêu chuẩn (Cuốc / Tưới / Liềm)
     const res = this.player.useTool(this.sound);
     if (this.player.activeTool === 'water') {
       const watered = this.floraManager.waterNearbyRice(this.player.x);
       if (watered) {
         this.showToast(`💧 Đã tưới nước! Lúa được chăm sóc lớn nhanh vượt trội 🌱`);
+        this.saveCurrentState();
         return;
       }
     }
@@ -241,10 +420,41 @@ export class Engine {
     const btnUse = document.getElementById('btn-use-tool');
     if (!btnCycle || !btnUse) return;
 
-    btnCycle.innerHTML = '💧 Tưới Nước [Q]';
-    btnUse.innerHTML = '🌾 Cấy / Gặt [E]';
-    btnUse.style.background = 'rgba(22, 163, 74, 0.85)';
-    btnUse.style.borderColor = '#4ade80';
+    const nearbyBanana = this.floraManager.findNearbyBanana(this.player.x, 75);
+    const bananaCount = this.player.carriedBananas.length;
+    const inPaddy = this.player.x >= this.floraManager.paddyStartX && this.player.x <= this.floraManager.paddyEndX;
+
+    if (this.pendingDigBanana && this.player.actionTimer > 0) {
+      btnUse.innerHTML = '⛏️ Đang Cuốc Bứng...';
+      btnUse.style.background = 'rgba(239, 68, 68, 0.9)';
+      btnUse.style.borderColor = '#f87171';
+    } else if (nearbyBanana) {
+      btnUse.innerHTML = '🎋 Bứng Cây Chuối [E]';
+      btnUse.style.background = 'rgba(234, 179, 8, 0.9)';
+      btnUse.style.borderColor = '#facc15';
+    } else if (bananaCount > 0 && !inPaddy) {
+      btnUse.innerHTML = `🌱 Trồng Chuối [E] (x${bananaCount})`;
+      btnUse.style.background = 'rgba(16, 185, 129, 0.9)';
+      btnUse.style.borderColor = '#34d399';
+    } else if (inPaddy) {
+      btnUse.innerHTML = '🌾 Cấy / Gặt Lúa [E]';
+      btnUse.style.background = 'rgba(22, 163, 74, 0.85)';
+      btnUse.style.borderColor = '#4ade80';
+    } else {
+      btnUse.innerHTML = '⛏️ Cuốc / Thao Tác [E]';
+      btnUse.style.background = 'rgba(15, 23, 42, 0.85)';
+      btnUse.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+    }
+
+    if (this.player.activeTool === 'water') {
+      btnCycle.innerHTML = '💧 Tưới Nước [Q]';
+    } else if (this.player.activeTool === 'hoe') {
+      btnCycle.innerHTML = '⛏️ Cuốc Đất [Q]';
+    } else if (this.player.activeTool === 'sickle') {
+      btnCycle.innerHTML = '🌾 Liềm Cắt [Q]';
+    } else {
+      btnCycle.innerHTML = '🔄 Đổi Dụng Cụ [Q]';
+    }
   }
 
   private loop(timestamp: number): void {
@@ -264,8 +474,29 @@ export class Engine {
     if (this.currentMode === 'map1') {
       this.mapWidth = this.floraManager.mapWidth;
 
-      // 1. Cập nhật Player di chuyển
+      // 1. Cập nhật Player di chuyển & giảm actionTimer
       this.player.update(dt, this.input, this.groundY, this.sound);
+
+      // Xử lý hoàn tất hành động cuốc đào: khi actionTimer <= 0 thì cây chuối mới biến mất
+      if (this.pendingDigBanana) {
+        if (this.player.actionTimer <= 0) {
+          const tree = this.pendingDigBanana.banana;
+          this.floraManager.removeBanana(tree); // Cây chuối biến mất sau khi hoàn tất hành động cuốc
+          this.player.carriedBananas.push(tree);
+          this.pendingDigBanana = null;
+          this.sound.play('coin');
+          this.showToast(`🎋 Đã hoàn thành cuốc bứng cây chuối vào túi! (Hiện có ${this.player.carriedBananas.length} cây). Hãy chọn đất mới và ấn [E] để trồng.`);
+          this.updateActionButtonsUI();
+          this.saveCurrentState();
+        }
+      }
+
+      // Tự động lưu định kỳ mỗi 4 giây
+      this.autoSaveTimer += dt;
+      if (this.autoSaveTimer >= 4.0) {
+        this.autoSaveTimer = 0;
+        this.saveCurrentState();
+      }
 
       // VÒNG LẶP BẢN ĐỒ TUẦN HOÀN (Seamless World Wrap):
       // Đi hết Đoạn 0A (X < -400m) -> Vòng sang cuối Đoạn 12 (X = 2380m)
@@ -296,6 +527,9 @@ export class Engine {
       const maxCamX = Math.max(0, this.mapWidth - this.width + 400);
       const clampedTarget = Math.max(minCamX, Math.min(maxCamX, targetCamX));
       this.cameraX += (clampedTarget - this.cameraX) * Math.min(1.0, dt * 8);
+
+      // Cập nhật nhãn & trạng thái nút bấm tương tác theo ngữ cảnh thời gian thực
+      this.updateActionButtonsUI();
     }
   }
 
@@ -335,8 +569,8 @@ export class Engine {
     ctx.save();
     ctx.translate(-Math.round(this.cameraX), 0);
 
-    // A. Lớp Cây Hậu Cảnh (Khóm Tre & Cây Chuối đứng sau)
-    this.floraManager.renderBackgroundTrees(ctx, groundY, this.animTimer);
+    // A. Lớp Cây Hậu Cảnh (Khóm Tre & Cây Chuối đứng sau - hiển thị tooltip bứng cây khi lại gần)
+    this.floraManager.renderBackgroundTrees(ctx, groundY, this.animTimer, this.player.x);
 
     // B. Mặt Đất Đồng Cỏ & Đáy Đất Phù Sa
     this.floraManager.renderGround(ctx, this.width, this.height, groundY);
@@ -365,9 +599,15 @@ export class Engine {
     // 3. HUD THÔNG TIN CỐ ĐỊNH TRÊN MÀN HÌNH (Screen Space)
     // ------------------------------------------------------------
     ctx.save();
+    const isSmall = this.width < 768;
+    const hudW = isSmall ? Math.min(270, this.width - 24) : 320;
+    const hudH = isSmall ? 48 : 56;
+    const hudX = isSmall ? 12 : 20;
+    const hudY = isSmall ? 52 : 68;
+
     ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
     ctx.beginPath();
-    ctx.roundRect(20, 68, 300, 56, 12);
+    ctx.roundRect(hudX, hudY, hudW, hudH, 12);
     ctx.fill();
     ctx.strokeStyle = this.showMapRuler ? '#38bdf8' : 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1.5;
@@ -384,13 +624,16 @@ export class Engine {
     const inPaddy = this.player.x >= this.floraManager.paddyStartX && this.player.x <= this.floraManager.paddyEndX;
 
     ctx.fillStyle = inPaddy ? '#38bdf8' : '#fde047';
-    ctx.font = 'bold 13px Outfit, sans-serif';
+    ctx.font = isSmall ? 'bold 11px Outfit, sans-serif' : 'bold 13px Outfit, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`📍 Đang ở: [ ${currentSecLabel.toUpperCase()} ] · X: ${Math.round(this.player.x)}m / ${this.mapWidth}m`, 34, 88);
+    ctx.fillText(`📍 [ ${currentSecLabel.toUpperCase()} ] · X: ${Math.round(this.player.x)}m / ${this.mapWidth}m`, hudX + 12, hudY + (isSmall ? 18 : 20));
+
+    const bananaCount = this.player.carriedBananas.length;
+    const bananaText = bananaCount > 0 ? ` · 🎋 Chuối: ${bananaCount}` : '';
 
     ctx.fillStyle = '#94a3b8';
-    ctx.font = '600 11px Outfit, sans-serif';
-    ctx.fillText(`🌾 Thóc: ${this.floraManager.riceCrop.harvestedGrains} · Phím: [G] Lưới đo · [E] Cấy/Gặt · [Q] Tưới`, 34, 108);
+    ctx.font = isSmall ? '600 10px Outfit, sans-serif' : '600 11px Outfit, sans-serif';
+    ctx.fillText(`🌾 Thóc: ${this.floraManager.riceCrop.harvestedGrains}${bananaText} · [E] Thao tác`, hudX + 12, hudY + (isSmall ? 36 : 40));
     ctx.restore();
   }
 

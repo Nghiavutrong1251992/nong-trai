@@ -6,6 +6,7 @@ export interface BananaInstance {
   hasFruit: boolean; // true: Cây có buồng chuối & bắp chuối tím | false: Cây xanh không quả
   isFlipped: boolean;
   phase: number;
+  isBeingDug?: boolean; // Đang trong quá trình bị cuốc đào
 }
 
 export class BananaTree {
@@ -38,14 +39,82 @@ export class BananaTree {
   }
 
   /**
+   * Tìm cây chuối gần vị trí người chơi nhất trong bán kính cho phép
+   */
+  public findNearby(playerX: number, maxDist: number = 75): { banana: BananaInstance; index: number; dist: number } | null {
+    let closest: { banana: BananaInstance; index: number; dist: number } | null = null;
+    let minDist = maxDist;
+
+    for (let i = 0; i < this.instances.length; i++) {
+      const b = this.instances[i];
+      const dist = Math.abs(playerX - b.x);
+      if (dist <= minDist) {
+        minDist = dist;
+        closest = { banana: b, index: i, dist };
+      }
+    }
+    return closest;
+  }
+
+  /**
+   * Bứng (đào) cây chuối tại vị trí index
+   */
+  public removeAt(index: number): BananaInstance | null {
+    if (index >= 0 && index < this.instances.length) {
+      const removed = this.instances.splice(index, 1)[0];
+      removed.isBeingDug = false;
+      return removed;
+    }
+    return null;
+  }
+
+  /**
+   * Xóa một cây chuối cụ thể khỏi danh sách
+   */
+  public removeBanana(banana: BananaInstance): boolean {
+    const idx = this.instances.indexOf(banana);
+    if (idx !== -1) {
+      this.instances.splice(idx, 1);
+      banana.isBeingDug = false;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Trồng cây chuối mới tại tọa độ x
+   */
+  public plantAt(x: number, template?: Partial<BananaInstance>): BananaInstance {
+    const newBanana: BananaInstance = {
+      x,
+      scale: template?.scale ?? (0.85 + Math.random() * 0.4),
+      hasFruit: template?.hasFruit ?? (Math.random() > 0.5),
+      isFlipped: template?.isFlipped ?? (Math.random() > 0.5),
+      phase: template?.phase ?? (Math.random() * Math.PI * 2),
+      isBeingDug: false
+    };
+    this.instances.push(newBanana);
+    // Sắp xếp lại theo x để dễ quản lý
+    this.instances.sort((a, b) => a.x - b.x);
+    return newBanana;
+  }
+
+  /**
    * Render các cây chuối hoạt họa 2D đung đưa nhẹ nhàng trong gió
    */
-  public render(ctx: CanvasRenderingContext2D, groundY: number, animTimer: number): void {
+  public render(ctx: CanvasRenderingContext2D, groundY: number, animTimer: number, playerX?: number): void {
     if (!this.treeLoaded || !this.fruitLoaded) return;
+
+    const nearby = playerX !== undefined ? this.findNearby(playerX, 75) : null;
 
     this.instances.forEach(inst => {
       const currentGroundY = GroundPlatform.getGroundY(inst.x, groundY);
-      const sway = Math.sin(animTimer * 1.3 + inst.phase) * 0.022;
+      const isDug = inst.isBeingDug;
+      
+      // Khi đang bị cuốc đào, cây chuối rung lắc mạnh tạo cảm giác chân thực
+      const sway = isDug
+        ? Math.sin(animTimer * 24) * 0.065
+        : Math.sin(animTimer * 1.3 + inst.phase) * 0.022;
 
       ctx.save();
       ctx.translate(inst.x, currentGroundY + 4);
@@ -62,6 +131,59 @@ export class BananaTree {
       ctx.drawImage(imgToDraw, -w / 2, -h + 8, w, h);
 
       ctx.restore();
+
+      // Hiệu ứng tương tác trực quan
+      if (isDug) {
+        ctx.save();
+        const tagY = currentGroundY - h - 14;
+
+        // Vòng đất rung chuyển dưới gốc
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+        ctx.beginPath();
+        ctx.ellipse(inst.x, currentGroundY, 36, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Badge trạng thái đang đào
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.strokeStyle = '#f87171';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(inst.x - 65, tagY, 130, 26, 13);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fca5a5';
+        ctx.font = 'bold 11px Outfit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('⛏️ Đang cuốc bứng...', inst.x, tagY + 17);
+        ctx.restore();
+      } else if (nearby && nearby.banana === inst) {
+        ctx.save();
+        const bounce = Math.sin(animTimer * 5) * 4;
+        const tagY = currentGroundY - h - 14 + bounce;
+
+        // Vẽ bóng đổ / vòng sáng nhỏ dưới gốc
+        ctx.fillStyle = 'rgba(250, 204, 21, 0.35)';
+        ctx.beginPath();
+        ctx.ellipse(inst.x, currentGroundY, 32, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Badge gợi ý [E] Bứng Cây
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(inst.x - 58, tagY, 116, 26, 13);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fde047';
+        ctx.font = 'bold 11px Outfit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎋 [E] Bứng Cây Chuối', inst.x, tagY + 17);
+        ctx.restore();
+      }
     });
   }
 }
+
