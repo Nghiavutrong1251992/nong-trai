@@ -20,16 +20,22 @@ export class Buffalo {
   private walkFrames: number = 5;
   private walkFps: number = 7.0;
 
-  // Sprite Sheet 2: Ăn cỏ (34 frames loại bỏ frame 044)
+  // Sprite Sheet 2: Ăn cỏ (34 frames)
   private grazeSheet = new Image();
   private grazeLoaded: boolean = false;
   private grazeFrames: number = 34;
-  private grazeFps: number = 6.0; // Nhịp nhai cỏ chậm rãi, thong thả
+  private grazeFps: number = 6.0;
+
+  // Sprite Sheet 3: Đứng yên gốc (8 frames trích xuất từ thư mục dung yen)
+  private idleSheet = new Image();
+  private idleLoaded: boolean = false;
+  private idleFrames: number = 8;
+  private idleFps: number = 6.0;
 
   private animTimer: number = 0;
 
-  // AI Roaming & Grazing State Machine (Mặc định đứng yên gặm cỏ)
-  public state: 'walk' | 'graze' = 'graze';
+  // AI Roaming, Idle & Grazing State Machine (Mặc định đứng yên)
+  public state: 'idle' | 'walk' | 'graze' = 'idle';
   private stateTimer: number = 0;
   private minX: number = 180;
   private maxX: number = 1340;
@@ -38,15 +44,23 @@ export class Buffalo {
     this.x = x;
     this.y = y;
 
-    this.walkSheet.src = '/assets/characters/buffalo/buffalo_walk_custom.png';
+    this.walkSheet.src = '/assets/characters/buffalo/buffalo_walk_custom.png?v=' + Date.now();
     this.walkSheet.onload = () => {
       this.walkLoaded = true;
     };
 
-    this.grazeSheet.src = '/assets/characters/buffalo/buffalo_graze_custom.png';
+    this.grazeSheet.src = '/assets/characters/buffalo/buffalo_graze_custom.png?v=' + Date.now();
     this.grazeSheet.onload = () => {
       this.grazeLoaded = true;
     };
+
+    this.idleSheet.src = '/assets/characters/buffalo/buffalo_idle_custom.png?v=' + Date.now();
+    this.idleSheet.onload = () => {
+      this.idleLoaded = true;
+    };
+
+
+
   }
 
   public update(dt: number, groundY: number): void {
@@ -54,24 +68,33 @@ export class Buffalo {
     this.stateTimer += dt;
     this.y = GroundPlatform.getGroundY(this.x, groundY);
 
-    // Chu kỳ chuẩn: Ăn cỏ trọn vẹn 1 lượt (Cúi đầu -> Nhai cỏ -> Ngẩng đầu) -> Đi dạo một đoạn -> Lặp lại
-    if (this.state === 'graze') {
-      const fullGrazeDuration = this.grazeFrames / this.grazeFps; // ~5.67s trọn vẹn 1 lượt ăn cỏ
-      // Khi đã hoàn thành 1 chu kỳ ăn cỏ trọn vẹn
-      if (this.stateTimer >= fullGrazeDuration) {
-        this.state = 'walk';
+    // Chu kỳ tự nhiên: Đứng yên ngắm cảnh (Idle 4-6s) -> Cúi gặm cỏ (Graze 5.6s) -> Đi dạo (Walk 3.5-5s) -> Lặp lại
+    if (this.state === 'idle') {
+      if (this.stateTimer >= 4.0 + Math.random() * 2.0) {
+        this.state = Math.random() < 0.6 ? 'graze' : 'walk';
         this.stateTimer = 0;
         this.animTimer = 0;
-        // Đổi hướng ngẫu nhiên khi bước đi
-        this.facing = Math.random() < 0.5 ? 1 : -1;
-        this.vx = this.facing * 22;
+        if (this.state === 'walk') {
+          this.facing = Math.random() < 0.5 ? 1 : -1;
+          this.vx = this.facing * 22;
+        }
+      }
+    } else if (this.state === 'graze') {
+      const fullGrazeDuration = this.grazeFrames / this.grazeFps; // ~5.67s
+      if (this.stateTimer >= fullGrazeDuration) {
+        this.state = Math.random() < 0.5 ? 'idle' : 'walk';
+        this.stateTimer = 0;
+        this.animTimer = 0;
+        if (this.state === 'walk') {
+          this.facing = Math.random() < 0.5 ? 1 : -1;
+          this.vx = this.facing * 22;
+        }
       }
     } else if (this.state === 'walk') {
-      // Đi dạo một đoạn ngắn khoảng 3.5 - 5.0 giây rồi dừng lại ăn cỏ
       if (this.stateTimer >= 3.5 + Math.random() * 1.5) {
-        this.state = 'graze';
+        this.state = 'idle';
         this.stateTimer = 0;
-        this.animTimer = 0; // Bắt đầu lại từ frame 0 (cúi đầu)
+        this.animTimer = 0;
         this.vx = 0;
       }
     }
@@ -91,12 +114,23 @@ export class Buffalo {
     }
   }
 
-  public render(ctx: CanvasRenderingContext2D): void {
-    const isGraze = this.state === 'graze';
-    const activeSheet = isGraze ? this.grazeSheet : this.walkSheet;
-    const isLoaded = isGraze ? this.grazeLoaded : this.walkLoaded;
-    const totalFrames = isGraze ? this.grazeFrames : this.walkFrames;
-    const fps = isGraze ? this.grazeFps : this.walkFps;
+  public render(ctx: CanvasRenderingContext2D, showLabel: boolean = false): void {
+    let activeSheet = this.idleSheet;
+    let isLoaded = this.idleLoaded;
+    let totalFrames = this.idleFrames;
+    let fps = this.idleFps;
+
+    if (this.state === 'graze') {
+      activeSheet = this.grazeSheet;
+      isLoaded = this.grazeLoaded;
+      totalFrames = this.grazeFrames;
+      fps = this.grazeFps;
+    } else if (this.state === 'walk') {
+      activeSheet = this.walkSheet;
+      isLoaded = this.walkLoaded;
+      totalFrames = this.walkFrames;
+      fps = this.walkFps;
+    }
 
     if (!isLoaded || !activeSheet.complete || activeSheet.naturalWidth === 0) return;
 
@@ -113,18 +147,12 @@ export class Buffalo {
     ctx.save();
     ctx.translate(Math.round(this.x), Math.round(this.y));
 
-    // 1. Bóng đổ chân trâu vững chắc dưới móng chân
-    ctx.fillStyle = 'rgba(28, 25, 23, 0.32)';
-    ctx.beginPath();
-    ctx.ellipse(0, 3, renderW * 0.28, renderH * 0.042, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 2. Hướng nhìn trái / phải (Sprite gốc quay sang TRÁI -> khi đi sang PHẢI cần scale -1)
+    // 1. Hướng nhìn trái / phải (Sprite gốc quay sang TRÁI -> khi đi sang PHẢI cần scale -1)
     if (this.facing > 0) {
       ctx.scale(-1, 1);
     }
 
-    // 3. Cắt và vẽ frame hiện tại
+    // 2. Cắt và vẽ frame hiện tại
     const sx = Math.floor(currentFrame * frameW);
     ctx.drawImage(
       activeSheet,
@@ -134,21 +162,87 @@ export class Buffalo {
 
     ctx.restore();
 
-    // 4. Nhãn tên trên đầu Chú Trâu
-    ctx.save();
-    ctx.translate(Math.round(this.x), Math.round(this.y - feetYOffset - 8));
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
-    ctx.beginPath();
-    ctx.roundRect(-44, -9, 88, 18, 8);
-    ctx.fill();
-    ctx.strokeStyle = isGraze ? 'rgba(132, 204, 22, 0.7)' : 'rgba(250, 204, 21, 0.6)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    // 3. Nhãn tên trên đầu Chú Trâu (Chỉ hiện khi bật)
+    if (showLabel) {
+      ctx.save();
+      ctx.translate(Math.round(this.x), Math.round(this.y - feetYOffset - 8));
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+      ctx.beginPath();
+      ctx.roundRect(-46, -9, 92, 18, 8);
+      ctx.fill();
+      ctx.strokeStyle = this.state === 'idle' ? 'rgba(56, 189, 248, 0.7)' : (this.state === 'graze' ? 'rgba(132, 204, 22, 0.7)' : 'rgba(250, 204, 21, 0.6)');
+      ctx.lineWidth = 1;
+      ctx.stroke();
 
-    ctx.fillStyle = isGraze ? '#bef264' : '#fde047';
-    ctx.font = 'bold 9.5px Outfit, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(isGraze ? '🌱 Trâu Đang Ăn Cỏ' : '🐃 Trâu Làng Quê', 0, 3.5);
+      ctx.fillStyle = this.state === 'idle' ? '#7dd3fc' : (this.state === 'graze' ? '#bef264' : '#fde047');
+      ctx.font = 'bold 9.5px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      const stateLabel = this.state === 'idle' ? '🐃 Trâu Đang Đứng Yên' : (this.state === 'graze' ? '🌱 Trâu Đang Ăn Cỏ' : '🐃 Trâu Đi Dạo');
+      ctx.fillText(stateLabel, 0, 3.5);
+      ctx.restore();
+    }
+  }
+
+
+  /**
+   * Phương thức render tĩnh / tùy biến vị trí phục vụ Studio đo đạc hoạt ảnh
+   */
+  public renderAt(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    state: 'idle' | 'walk' | 'graze',
+    animTimer: number,
+    facing: number = 1,
+    customHeight?: number
+  ): void {
+    let activeSheet = this.idleSheet;
+    let isLoaded = this.idleLoaded;
+    let totalFrames = this.idleFrames;
+    let fps = this.idleFps;
+
+    if (state === 'graze') {
+      activeSheet = this.grazeSheet;
+      isLoaded = this.grazeLoaded;
+      totalFrames = this.grazeFrames;
+      fps = this.grazeFps;
+    } else if (state === 'walk') {
+      activeSheet = this.walkSheet;
+      isLoaded = this.walkLoaded;
+      totalFrames = this.walkFrames;
+      fps = this.walkFps;
+    }
+
+    if (!isLoaded || !activeSheet.complete || activeSheet.naturalWidth === 0) return;
+
+    const frameW = activeSheet.naturalWidth / totalFrames;
+    const frameH = activeSheet.naturalHeight;
+    const currentFrame = Math.floor(animTimer * fps) % totalFrames;
+
+    const targetH = customHeight ?? this.targetHeight;
+    const scale = targetH / frameH;
+    const renderW = frameW * scale;
+    const renderH = targetH;
+    const feetYOffset = (196.0 / frameH) * renderH;
+
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+
+    // Hướng nhìn (Sprite gốc quay sang TRÁI -> khi facing > 0 thì scale -1)
+    if (facing > 0) {
+      ctx.scale(-1, 1);
+    }
+
+
+    const sx = Math.floor(currentFrame * frameW);
+    ctx.drawImage(
+      activeSheet,
+      sx, 0, frameW, frameH,
+      -renderW / 2, -feetYOffset + 4, renderW, renderH
+    );
+
     ctx.restore();
   }
 }
+
+

@@ -12,6 +12,12 @@ export class FluteKite {
   public angle: number = 0;
   public isActive: boolean = true; // Mặc định BẬT để luôn thấy diều bay lơ lửng
 
+  public toggleActive(): boolean {
+    this.isActive = !this.isActive;
+    return this.isActive;
+  }
+
+
   private img: HTMLImageElement | null = null;
   private transparentCanvas: HTMLCanvasElement | null = null;
   private isLoaded: boolean = false;
