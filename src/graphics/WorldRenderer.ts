@@ -91,10 +91,14 @@ export class WorldRenderer {
         if (x < -200) secName = 'Đoạn 0A (Đồng cỏ xa)';
         else if (x < 0) secName = 'Đoạn 0B (Đồng cỏ)';
         else if (x >= 0 && x < 800) secName = `Đoạn ${secNumber} (Ao Cá Làng Quê)`;
-        else if (x >= 800 && x < 1200) secName = `Đoạn ${secNumber} (Lũy Tre & Chuối)`;
-        else if (x >= 1200 && x < 1800) secName = `Đoạn ${secNumber} (Mô Đất / Đồi Cỏ)`;
-        else if (x >= 1800 && x < 2600) secName = `Đoạn ${secNumber} (Ruộng Lúa Nước)`;
-        else if (x >= 2600) secName = `Đoạn ${secNumber} (Bờ Đê Cuối)`;
+        else if (x >= 800 && x < 2600) secName = `Đoạn ${secNumber} (Đại Lũy Tre Làng)`;
+        else if (x >= 2600 && x < 3200) secName = `Đoạn ${secNumber} (Mô Đất / Đồi Cỏ)`;
+        else if (x >= 3200 && x < 3400) secName = `Đoạn 19 (🌱 Mạ Non)`;
+        else if (x >= 3400 && x < 3600) secName = `Đoạn 20 (🌿 Lúa Nhánh)`;
+        else if (x >= 3600 && x < 3800) secName = `Đoạn 21 (🌾 Lúa Đòng)`;
+        else if (x >= 3800 && x < 4000) secName = `Đoạn 22 (🌾 Lúa Chín Vàng)`;
+        else if (x >= 4000) secName = `Đoạn 23 (Bờ Đê Cuối)`;
+
 
 
         // Badge trên không gian bầu trời

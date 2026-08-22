@@ -14,6 +14,7 @@ import { RiceCrop } from './RiceCrop';
 import { BambooGrove } from './BambooGrove';
 import { BananaTree } from './BananaTree';
 import { FishPond } from './FishPond';
+import { VillageHouse } from '../scenery/VillageHouse';
 
 export class FloraManager {
   public ground = new GroundPlatform();
@@ -22,45 +23,52 @@ export class FloraManager {
   public bamboo = new BambooGrove();
   public banana = new BananaTree();
   public fishPond = new FishPond();
+  public house = new VillageHouse();
 
-  public mapWidth = 2800; // Mở rộng 2800m chứa trọn vẹn 4 đoạn Ao Cá
-  public paddyStartX = 1800; // Đoạn 9 (1800m)
-  public paddyEndX = 2600;   // Đoạn 13 (2600m)
+  public mapWidth = 4200; // Mở rộng 4200m (Thêm 7 phân đoạn Lũy Tre Làng)
+  public paddyStartX = 3200; // Ruộng Lúa Nước (3200m -> 4000m)
+  public paddyEndX = 4000;
 
   constructor() {
-    // 1. Cụm Đại Lũy Tre Làng Cao Vút (Đoạn 5, 6: 840m -> 1060m)
-    this.bamboo.instances = [
-      { x: 860,  scale: 1.05, variant: 'green',  isFlipped: true,  phase: 0.1 },
-      { x: 910,  scale: 1.32, variant: 'yellow', isFlipped: false, phase: 0.3 },
-      { x: 960,  scale: 1.20, variant: 'green',  isFlipped: false, phase: 0.6 },
-      { x: 1010, scale: 1.10, variant: 'yellow', isFlipped: true,  phase: 0.8 },
-      { x: 1050, scale: 0.98, variant: 'green',  isFlipped: false, phase: 1.1 }
-    ];
+    // 1. Cụm Đại Lũy Tre Làng 9 Phân Đoạn (800m -> 2600m) đã được khởi tạo trong BambooGrove
 
     // 2. Vùng Đồng Cỏ Hoa Làng Quê
-    this.wildGrass.initFlowers(-300, 1200);
+    this.wildGrass.initFlowers(-400, 4200);
 
-    // 3. Các cây chuối quanh bờ ao & trên đỉnh đồi cỏ
+    // 3. Các cây chuối cuối lũy tre & trên đỉnh đồi cỏ
     this.banana.instances = [
-      { x: 1100, scale: 1.15, hasFruit: true,  isFlipped: false, phase: 0.2 },
-      { x: 1170, scale: 0.85, hasFruit: false, isFlipped: true,  phase: 0.6 },
-      { x: 1480, scale: 1.25, hasFruit: true,  isFlipped: false, phase: 1.1 }, // Trên đỉnh đồi cỏ
-      { x: 1550, scale: 0.78, hasFruit: false, isFlipped: true,  phase: 1.5 }  // Sườn đồi cỏ
+      { x: 2520, scale: 1.15, hasFruit: true,  isFlipped: false, phase: 0.2 },
+      { x: 2580, scale: 0.85, hasFruit: false, isFlipped: true,  phase: 0.6 },
+      { x: 2880, scale: 1.25, hasFruit: true,  isFlipped: false, phase: 1.1 }, // Trên đỉnh đồi cỏ
+      { x: 2960, scale: 0.78, hasFruit: false, isFlipped: true,  phase: 1.5 }  // Sườn đồi cỏ
     ];
 
-    // 4. Thửa Ruộng Lúa Nước (Đoạn 9-13: từ 1800m -> 2600m)
+    // 4. Thửa Ruộng Lúa Nước 4 Giai Đoạn (từ 3200m -> 4000m)
     this.riceCrop.initRiceField(this.paddyStartX, this.paddyEndX);
   }
 
   public update(dt: number, groundY: number = 480): void {
     this.riceCrop.update(dt);
     this.fishPond.update(dt, groundY);
+    this.house.update(dt, groundY);
   }
 
-  public renderBackgroundTrees(ctx: CanvasRenderingContext2D, groundY: number, animTimer: number, playerX?: number): void {
-    this.bamboo.render(ctx, groundY, animTimer);
+  public renderBackgroundTrees(
+    ctx: CanvasRenderingContext2D,
+    groundY: number,
+    animTimer: number,
+    playerX?: number,
+    cameraX: number = 0,
+    screenW: number = 1400
+  ): void {
+    // 1. Vẽ Ngôi Nhà Mái Ngói Đỏ 3 Gian tại Đoạn 12 - 14 (Hậu cảnh ấm cúng)
+    this.house.render(ctx, groundY, animTimer, cameraX, screenW);
+    // 2. Vẽ Rặng Tre Làng và Vườn Chuối
+    this.bamboo.render(ctx, groundY, animTimer, cameraX, screenW);
     this.banana.render(ctx, groundY, animTimer, playerX);
   }
+
+
 
   public renderGround(ctx: CanvasRenderingContext2D, width: number, height: number, groundY: number, animTimer: number = 0, playerX?: number): void {
     this.ground.render(ctx, this.mapWidth, height, groundY);
@@ -81,6 +89,8 @@ export class FloraManager {
     this.riceCrop.render(ctx, groundY, playerX, animTimer, cameraX, screenW, 'background');
   }
 
+  public showWildGrass: boolean = true; // Bật lớp cỏ hoa vẽ tay phủ tự nhiên lên nền đất nâu
+
   /**
    * Render Lớp Tiền Cảnh (Cây lúa tiền cảnh che ngang người chơi + Cỏ hoa đường làng)
    */
@@ -92,19 +102,25 @@ export class FloraManager {
     cameraX: number = 0,
     screenW: number = 1400
   ): void {
-    // 1. Cỏ dại hoa tươi trên đường cỏ mở rộng (-450m -> 2800m), tự động né hồ cá và ruộng lúa
-    this.wildGrass.render(
-      ctx,
-      groundY,
-      playerX,
-      animTimer,
-      -450,
-      this.mapWidth,
-      this.fishPond.startX,
-      this.fishPond.endX,
-      this.paddyStartX,
-      this.paddyEndX
-    );
+    // 1. Cỏ dại hoa tươi trên đường cỏ mở rộng (Tạm ẩn theo yêu cầu, có thể bật lại bất cứ lúc nào)
+    if (this.showWildGrass) {
+      this.wildGrass.render(
+        ctx,
+        groundY,
+        playerX,
+        animTimer,
+        -450,
+        this.mapWidth,
+        this.fishPond.startX,
+        this.fishPond.endX,
+        this.paddyStartX,
+        this.paddyEndX,
+        cameraX,
+        screenW
+      );
+    }
+
+
 
 
     // 2. Lớp lúa tiền cảnh (Đứng trước che ngang người chơi tạo độ sâu 2.5D ngập lúa)

@@ -78,11 +78,21 @@ export class WeatherManager {
   public onWeatherChange?: (weather: WeatherType) => void;
   public onThunder?: () => void;
 
+  private leafBambooImg = new Image();
+  private leafGoldenImg = new Image();
+  private leafPetalImg = new Image();
+
   private animTimer: number = 0;
 
   constructor() {
+    const v = Date.now();
+    this.leafBambooImg.src = `/assets/props/leaves/leaf_bamboo_clean.png?v=${v}`;
+    this.leafGoldenImg.src = `/assets/props/leaves/leaf_golden_autumn.png?v=${v}`;
+    this.leafPetalImg.src = `/assets/props/leaves/leaf_blossom_petal.png?v=${v}`;
+
     this.initWindParticles();
   }
+
 
   private initWindParticles(): void {
     this.windParticles = [];
@@ -414,25 +424,39 @@ export class WeatherManager {
         ctx.save();
         ctx.translate(sx, sy);
         ctx.rotate(p.angle);
-        ctx.fillStyle = p.color;
+        let img: HTMLImageElement | null = null;
+        let baseW = 10;
+        let baseH = 22;
 
         if (p.type === 'leaf') {
-          ctx.beginPath();
-          ctx.ellipse(0, 0, p.size * 1.6, p.size * 0.75, 0, 0, Math.PI * 2);
-          ctx.fill();
+          img = this.leafBambooImg;
+          baseW = 8;
+          baseH = 18;
         } else if (p.type === 'yellow_leaf') {
-          ctx.beginPath();
-          ctx.ellipse(0, 0, p.size * 1.4, p.size * 0.9, 0.4, 0, Math.PI * 2);
-          ctx.fill();
+          img = this.leafGoldenImg;
+          baseW = 10;
+          baseH = 15;
         } else {
+          img = this.leafPetalImg;
+          baseW = 9;
+          baseH = 13;
+        }
+
+        if (img && img.complete && img.naturalWidth > 0) {
+          const w = baseW * (p.size / 4.0);
+          const h = baseH * (p.size / 4.0);
+          ctx.drawImage(img, -w / 2, -h / 2, w, h);
+        } else {
+          ctx.fillStyle = p.color;
           ctx.beginPath();
-          ctx.arc(0, 0, p.size * 0.8, 0, Math.PI * 2);
+          ctx.ellipse(0, 0, p.size * 1.5, p.size * 0.75, 0, 0, Math.PI * 2);
           ctx.fill();
         }
 
         ctx.restore();
       });
     }
+
 
     ctx.restore();
   }

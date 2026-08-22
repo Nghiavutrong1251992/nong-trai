@@ -90,7 +90,9 @@ export class Engine {
         this.floraManager.banana.instances = saved.bananas;
       }
       if (saved.player) {
-        this.player.x = saved.player.x ?? 450;
+        let px = saved.player.x ?? 450;
+        if (isNaN(px) || px < -350 || px > 2700) px = 450;
+        this.player.x = px;
         this.player.carriedBananas = saved.player.carriedBananas ?? [];
         this.player.coins = saved.player.coins ?? 250;
       }
@@ -106,6 +108,9 @@ export class Engine {
       this.showToast('🌾 Không gian sạch sẵn sàng để xây dựng Cỏ & Cây!');
     }
     this.player.y = this.groundY;
+    // Khóa camera ngay lập tức vào vị trí nhân vật
+    this.cameraX = Math.max(-400, Math.min(this.mapWidth - this.width + 400, this.player.x - this.width / 2));
+
 
     // Tự động lưu tức thì trước khi reload hoặc đóng tab
     window.addEventListener('beforeunload', () => this.saveCurrentStateImmediate());
@@ -278,11 +283,12 @@ export class Engine {
     ctx.save();
     ctx.translate(-Math.round(this.cameraX), 0);
 
-    // A. Cây Hậu Cảnh (Khóm Tre & Cây Chuối đứng sau)
-    this.floraManager.renderBackgroundTrees(ctx, groundY, this.animTimer, this.player.x);
-
-    // B. Mặt Đất Đồng Cỏ & Phù Sa & Hồ Cá Làng Quê
+    // A. Mặt Đất Đồng Cỏ & Phù Sa & Hồ Cá Làng Quê
     this.floraManager.renderGround(ctx, this.width, this.height, groundY, this.animTimer, this.player.x);
+
+    // B. Cảnh Quan Hậu Cảnh (Ngôi Nhà Ngói Đỏ 3 Gian, Rặng Tre Làng, Vườn Chuối)
+    this.floraManager.renderBackgroundTrees(ctx, groundY, this.animTimer, this.player.x, this.cameraX, this.width);
+
 
 
     // C. Cánh Đồng Lúa Nước Lớp Hậu Cảnh

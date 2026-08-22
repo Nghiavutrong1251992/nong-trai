@@ -15,8 +15,9 @@ export class BananaTree {
   private treeLoaded = false;
   private fruitLoaded = false;
 
-  private width = 210;
-  private height = 225;
+  private width = 147; // Thu nhỏ 30% so với trước (210 * 0.7)
+  private height = 158; // Thu nhỏ 30% so với trước (225 * 0.7)
+
 
   // Bố trí các cây chuối trên tầng thấp và tầng đất cao ngắm cảnh
   public instances: BananaInstance[] = [

@@ -1,141 +1,216 @@
 /**
  * BambooGrove.ts
- * Module chuyên trách vẽ Cụm Tre Làng Quê 2D Đúng Phong Cách Hoạt Họa Mẫu
- * - Hỗ trợ 2 Biến Thể:
- *   1. 'yellow': Thân tre vàng nứa kinh điển theo ảnh mẫu
- *   2. 'green': Thân tre xanh tươi đậm đà, tán lá dày dặn sum suê
- * - Tách nền trong suốt $100\%$, đung đưa nhịp nhàng theo làn gió tự nhiên.
+ * Module chuyên trách vẽ Đại Lũy Tre Làng 9 Phân Đoạn Trải Dài (800m -> 2600m):
+ * - 🎋 Phân bố thành các cụm bụi tre làng đan xen so le nghệ thuật, thoáng đãng
+ * - 🎍 Đầy đủ 7 biến thể dáng tre tùy biến (cao vút, cong trái, cong phải, cao vừa, dáng thấp, bụi xòe, khóm 3 thân)
+ * - ⚡ Viewport Culling 60 FPS siêu nhẹ
  */
 
 import { GroundPlatform } from './GroundPlatform';
 
+export type BambooVariant =
+  | 'tall_straight'
+  | 'tall_curve_l'
+  | 'tall_curve_r'
+  | 'mid_tall'
+  | 'short_tall'
+  | 'bushy'
+  | 'cluster_short';
+
 export interface BambooInstance {
   x: number;
+  variant: BambooVariant;
   scale: number;
-  variant: 'yellow' | 'green';
+  lean: number;
   isFlipped: boolean;
   phase: number;
+  swaySens: number;
 }
 
 export class BambooGrove {
-  private imgYellow = new Image();
-  private imgGreen = new Image();
+  private images: Partial<Record<BambooVariant, HTMLImageElement>> = {};
+  public isLoaded: boolean = false;
 
-  private canvasYellow: HTMLCanvasElement | null = null;
-  private canvasGreen: HTMLCanvasElement | null = null;
+  private variantSpecs: Record<BambooVariant, { baseW: number; baseH: number; yAnchorOffset: number }> = {
+    tall_straight: { baseW: 98,  baseH: 490, yAnchorOffset: 2 },
+    tall_curve_l:  { baseW: 110, baseH: 485, yAnchorOffset: 2 },
+    tall_curve_r:  { baseW: 110, baseH: 485, yAnchorOffset: 2 },
+    mid_tall:      { baseW: 95,  baseH: 375, yAnchorOffset: 2 },
+    short_tall:    { baseW: 88,  baseH: 270, yAnchorOffset: 2 },
+    bushy:         { baseW: 165, baseH: 320, yAnchorOffset: 2 },
+    cluster_short: { baseW: 125, baseH: 240, yAnchorOffset: 2 }
+  };
 
-  private isYellowLoaded: boolean = false;
-  private isGreenLoaded: boolean = false;
-
-  private baseWidth: number = 300;
-  private baseHeight: number = 440;
-
-  // Bố trí cụm tre làng đan xen cả tre vàng nứa & tre xanh dày dặn tại Đoạn 2 (x: 200m -> 400m)
-  public instances: BambooInstance[] = [
-    { x: 210, scale: 0.92, variant: 'green',  isFlipped: true,  phase: 0.1 }, // Cây tre xanh dày dặn bên trái
-    { x: 285, scale: 1.18, variant: 'yellow', isFlipped: false, phase: 0.4 }, // Cây tre vàng nứa cao lớn ở giữa
-    { x: 360, scale: 1.05, variant: 'green',  isFlipped: false, phase: 0.8 }  // Cây tre xanh dày dặn bên phải
-  ];
+  public instances: BambooInstance[] = [];
 
   constructor() {
-    this.imgYellow.src = '/assets/props/bamboo_exact.jpg';
-    this.imgYellow.onload = () => {
-      this.canvasYellow = this.processTransparentSprite(this.imgYellow);
-      this.isYellowLoaded = true;
-    };
-
-    this.imgGreen.src = '/assets/props/bamboo_green.jpg';
-    this.imgGreen.onload = () => {
-      this.canvasGreen = this.processTransparentSprite(this.imgGreen);
-      this.isGreenLoaded = true;
-    };
+    this.initBambooInstances();
+    this.loadBambooSprites();
   }
 
   /**
-   * Khử sạch hoàn toàn nền trắng và triệt tiêu quầng sáng viền (Advanced Defringe)
+   * Bố cục Đại Lũy Tre Làng 9 Phân Đoạn (x: 800m -> 2600m) theo các cụm bụi đan xen so le
    */
-  private processTransparentSprite(img: HTMLImageElement): HTMLCanvasElement {
-    const w = img.naturalWidth || img.width;
-    const h = img.naturalHeight || img.height;
+  private initBambooInstances(): void {
+    this.instances = [];
 
-    const c = document.createElement('canvas');
-    c.width = w;
-    c.height = h;
-    const ctx = c.getContext('2d')!;
+    // Tạo các cụm bụi tre tự nhiên dọc theo đường làng, uốn lượn và ôm quanh ngôi nhà ngói đỏ tại Đoạn 12-14
+    const clusterCenters = [
+      860, 1060, 1260, 1460, 1660, 1840, 2280, 2480
+    ];
 
-    ctx.drawImage(img, 0, 0);
 
-    const imgData = ctx.getImageData(0, 0, w, h);
-    const d = imgData.data;
+    clusterCenters.forEach((cx, cIdx) => {
+      // Mỗi cụm bụi gồm 4 - 6 cây/khóm đan xen đa tầng:
+      // 1. Tre cao hậu cảnh vươn lên
+      this.instances.push({
+        x: cx - 45 + (Math.sin(cIdx * 1.3) * 10),
+        variant: cIdx % 2 === 0 ? 'tall_curve_l' : 'tall_curve_r',
+        scale: 0.96 + ((cIdx % 3) * 0.05),
+        lean: cIdx % 2 === 0 ? -0.03 : 0.03,
+        isFlipped: cIdx % 2 === 1,
+        phase: (cIdx * 0.4) % (Math.PI * 2),
+        swaySens: 1.15
+      });
 
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i];
-      const g = d[i + 1];
-      const b = d[i + 2];
+      this.instances.push({
+        x: cx + 35 + (Math.cos(cIdx * 1.7) * 10),
+        variant: 'tall_straight',
+        scale: 1.02 + ((cIdx % 2) * 0.06),
+        lean: 0.00,
+        isFlipped: cIdx % 2 === 0,
+        phase: (cIdx * 0.4 + 0.8) % (Math.PI * 2),
+        swaySens: 1.20
+      });
 
-      const maxC = Math.max(r, Math.max(g, b));
-      const minC = Math.min(r, Math.min(g, b));
-      const sat = maxC - minC; // Độ bão hòa màu sắc
+      // 2. Tre trung cảnh (Dáng vừa & Bụi xòe)
+      this.instances.push({
+        x: cx - 15 + (Math.sin(cIdx * 2.1) * 8),
+        variant: cIdx % 2 === 0 ? 'bushy' : 'mid_tall',
+        scale: 0.94 + ((cIdx % 3) * 0.04),
+        lean: cIdx % 2 === 0 ? 0.02 : -0.02,
+        isFlipped: cIdx % 3 === 0,
+        phase: (cIdx * 0.4 + 1.4) % (Math.PI * 2),
+        swaySens: 0.90
+      });
 
-      // 1. Khử nền trắng và toàn bộ các vệt trắng trong kẽ cành tre (Brightness cao, Saturation thấp)
-      if (minC > 175 && sat < 45) {
-        if (minC >= 220) {
-          // Trắng hoặc gần trắng -> Trong suốt hoàn toàn 100%
-          d[i + 3] = 0;
-        } else {
-          // Viền chuyển tiếp -> Mịn màng không lộ viền trắng (Defringe)
-          const alphaFactor = (220 - minC) / 45;
-          d[i + 3] = Math.round(Math.pow(alphaFactor, 1.4) * 255);
+      this.instances.push({
+        x: cx + 55 + (Math.cos(cIdx * 2.5) * 8),
+        variant: cIdx % 2 === 0 ? 'mid_tall' : 'bushy',
+        scale: 0.90 + ((cIdx % 2) * 0.05),
+        lean: 0.03,
+        isFlipped: cIdx % 2 === 1,
+        phase: (cIdx * 0.4 + 1.9) % (Math.PI * 2),
+        swaySens: 0.85
+      });
 
-          // Triệt tiêu màu trắng thừa, hòa sắc vào màu viền đen/xanh đậm
-          d[i] = Math.round(r * 0.35);
-          d[i + 1] = Math.round(g * 0.5);
-          d[i + 2] = Math.round(b * 0.3);
-        }
+      // 3. Tiền cảnh (Khóm thấp 3 thân & Tre tơ)
+      this.instances.push({
+        x: cx - 25,
+        variant: 'cluster_short',
+        scale: 0.90 + ((cIdx % 2) * 0.06),
+        lean: -0.02,
+        isFlipped: cIdx % 2 === 0,
+        phase: (cIdx * 0.4 + 2.3) % (Math.PI * 2),
+        swaySens: 0.65
+      });
+
+      this.instances.push({
+        x: cx + 20,
+        variant: 'short_tall',
+        scale: 0.88 + ((cIdx % 3) * 0.04),
+        lean: 0.02,
+        isFlipped: cIdx % 2 === 1,
+        phase: (cIdx * 0.4 + 2.7) % (Math.PI * 2),
+        swaySens: 0.70
+      });
+
+      // Cây đứng lẻ tự nhiên ở khoảng nối giữa 2 cụm
+      if (cIdx < clusterCenters.length - 1) {
+        const midX = (cx + clusterCenters[cIdx + 1]) / 2;
+        this.instances.push({
+          x: midX + (Math.sin(cIdx * 3.1) * 15),
+          variant: cIdx % 2 === 0 ? 'tall_curve_r' : 'short_tall',
+          scale: 0.88 + ((cIdx % 2) * 0.08),
+          lean: cIdx % 2 === 0 ? 0.04 : -0.03,
+          isFlipped: cIdx % 2 === 0,
+          phase: (cIdx * 0.5 + 0.3) % (Math.PI * 2),
+          swaySens: 1.05
+        });
       }
-      // 2. Xử lý các điểm sáng trắng lóa ở rìa cành lá
-      else if (minC > 210 && sat < 60) {
-        if (minC >= 235) {
-          d[i + 3] = 0;
-        } else {
-          const alphaFactor = (235 - minC) / 25;
-          d[i + 3] = Math.round(alphaFactor * 255);
-        }
-      }
-    }
+    });
 
-    ctx.putImageData(imgData, 0, 0);
-    return c;
+    // Sắp xếp lại theo trục X để render mượt mà
+    this.instances.sort((a, b) => a.x - b.x);
+  }
+
+  private loadBambooSprites(): void {
+    const v = Date.now();
+    const files: Record<BambooVariant, string> = {
+      tall_straight: `/assets/props/bamboo/bamboo_var_tall.png?v=${v}`,
+      tall_curve_l:  `/assets/props/bamboo/bamboo_var_curve_left.png?v=${v}`,
+      tall_curve_r:  `/assets/props/bamboo/bamboo_var_curve_right.png?v=${v}`,
+      mid_tall:      `/assets/props/bamboo/bamboo_var_mid.png?v=${v}`,
+      short_tall:    `/assets/props/bamboo/bamboo_var_short.png?v=${v}`,
+      bushy:         `/assets/props/bamboo/bamboo2_bushy.png?v=${v}`,
+      cluster_short: `/assets/props/bamboo/bamboo2_short.png?v=${v}`
+    };
+
+    let loadedCount = 0;
+    const total = Object.keys(files).length;
+
+    Object.entries(files).forEach(([variantKey, src]) => {
+      const img = new Image();
+      img.src = src;
+      img.onload = () => {
+        loadedCount++;
+        if (loadedCount >= total) {
+          this.isLoaded = true;
+        }
+      };
+      this.images[variantKey as BambooVariant] = img;
+    });
   }
 
   /**
-   * Render các cụm tre hoạt họa 2D đung đưa nhẹ nhàng trong gió
+   * Render Rặng Tre Làng với Viewport Culling 60 FPS
    */
-  public render(ctx: CanvasRenderingContext2D, groundY: number, animTimer: number): void {
-    this.instances.forEach(inst => {
-      const sprite = inst.variant === 'green' ? this.canvasGreen : this.canvasYellow;
-      const isLoaded = inst.variant === 'green' ? this.isGreenLoaded : this.isYellowLoaded;
+  public render(
+    ctx: CanvasRenderingContext2D,
+    groundY: number,
+    animTimer: number,
+    cameraX: number = 0,
+    viewportW: number = 1400
+  ): void {
+    const minViewX = cameraX - 140;
+    const maxViewX = cameraX + viewportW + 140;
 
-      if (!isLoaded || !sprite) return;
+    for (let i = 0; i < this.instances.length; i++) {
+      const inst = this.instances[i];
+      if (inst.x < minViewX || inst.x > maxViewX) continue;
 
+      const img = this.images[inst.variant];
+      if (!img || !img.complete || img.naturalWidth <= 0) continue;
+
+      const spec = this.variantSpecs[inst.variant];
       const currentGroundY = GroundPlatform.getGroundY(inst.x, groundY);
-      // Gió làng quê làm ngọn tre đung đưa êm ái
-      const sway = Math.sin(animTimer * 1.4 + inst.phase) * 0.022;
+
+      const sway = Math.sin(animTimer * 1.5 + inst.phase) * 0.022 * inst.swaySens;
 
       ctx.save();
-      ctx.translate(inst.x, currentGroundY + 6);
-      ctx.rotate(sway);
+      ctx.translate(inst.x, currentGroundY + spec.yAnchorOffset);
+      ctx.rotate(sway + inst.lean);
 
       if (inst.isFlipped) {
         ctx.scale(-1, 1);
       }
 
-      const w = this.baseWidth * inst.scale;
-      const h = this.baseHeight * inst.scale;
+      const w = spec.baseW * inst.scale;
+      const h = spec.baseH * inst.scale;
 
-      ctx.drawImage(sprite, -w / 2, -h + 8, w, h);
+      ctx.drawImage(img, -w / 2, -h + 2, w, h);
 
       ctx.restore();
-    });
+    }
   }
 }
