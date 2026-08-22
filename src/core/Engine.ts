@@ -5,6 +5,7 @@ import { VegetableGirl } from '../entities/VegetableGirl';
 import { FloraManager } from '../graphics/plants/FloraManager';
 import { BananaInstance } from '../graphics/plants/BananaTree';
 import { SaveManager } from './SaveManager';
+import { FluteKite } from '../entities/FluteKite';
 
 export class Engine {
   private canvas!: HTMLCanvasElement;
@@ -19,6 +20,7 @@ export class Engine {
   private buffalo = new Buffalo(560, 480);
   private vegetableGirl = new VegetableGirl(820, 480);
   public floraManager = new FloraManager();
+  public fluteKite = new FluteKite();
 
   // Trạng thái đang cuốc bứng cây chuối (Chờ hết hành động cuốc mới xóa cây)
   private pendingDigBanana: { banana: BananaInstance; targetX: number } | null = null;
@@ -172,6 +174,8 @@ export class Engine {
       // Phím Q: Rút / Đổi / Cất dụng cụ
       if (k === 'q') {
         const res = this.player.cycleTool();
+        this.fluteKite.isActive = (this.player.activeTool === 'kite');
+        if (this.fluteKite.isActive) this.sound.play('kite');
         this.showToast(res.label);
         this.updateActionButtonsUI();
       }
@@ -181,21 +185,34 @@ export class Engine {
         this.handleUseTool();
       }
 
-      // Các phím số tắt 1, 2, 3 nhanh
+      // Các phím số tắt 1, 2, 3, 4 nhanh
       if (k === '1') {
         this.player.selectTool('hoe');
+        this.fluteKite.isActive = false;
         this.showToast('⛏️ Đã trang bị: Cuốc Đất (Ấn E để cuốc)');
         this.updateActionButtonsUI();
       }
       if (k === '2') {
         this.player.selectTool('water');
+        this.fluteKite.isActive = false;
         this.showToast('💧 Đã trang bị: Thùng Nước (Ấn E để tưới)');
         this.updateActionButtonsUI();
       }
       if (k === '3') {
         this.player.selectTool('sickle');
+        this.fluteKite.isActive = false;
         this.showToast('🌾 Đã trang bị: Liềm Cắt Lúa (Ấn E để thu hoạch)');
         this.updateActionButtonsUI();
+      }
+      if (k === '4') {
+        this.player.selectTool('kite');
+        this.fluteKite.isActive = (this.player.activeTool === 'kite');
+        this.showToast('🪁 Đã trang bị: Diều Sáo Dân Gian (Vừa chạy vừa thả diều bay bổng)');
+        if (this.fluteKite.isActive) this.sound.play('kite');
+        this.updateActionButtonsUI();
+      }
+      if (k === 'k') {
+        toggleKite();
       }
       if (k === 'g') {
         this.showMapRuler = !this.showMapRuler;
@@ -213,6 +230,28 @@ export class Engine {
         if (btnMute) btnMute.textContent = isMuted ? '🔇 Bật Nhạc [M]' : '🎵 Nhạc Làng Quê [M]';
       }
     });
+
+    // Bật / Tắt Thả Diều Sáo [K]
+    const toggleKite = () => {
+      if (this.player.activeTool === 'kite') {
+        this.player.activeTool = 'none';
+        this.fluteKite.isActive = false;
+        this.showToast('🌿 Đã cất diều sáo (Trở về trạng thái tay không)');
+      } else {
+        this.player.activeTool = 'kite';
+        this.fluteKite.isActive = true;
+        this.showToast('🪁 Đã trang bị & thả diều sáo trên bầu trời!');
+        this.sound.play('kite');
+      }
+      this.updateActionButtonsUI();
+      const btnKite = document.getElementById('btn-toggle-kite');
+      if (btnKite) {
+        btnKite.classList.toggle('active', this.fluteKite.isActive);
+        btnKite.textContent = this.fluteKite.isActive ? '🪁 Thả Diều: BẬT [K]' : '🪁 Thả Diều: TẮT [K]';
+      }
+    };
+    document.getElementById('btn-toggle-kite')?.addEventListener('click', toggleKite);
+    document.getElementById('m-btn-kite')?.addEventListener('click', toggleKite);
 
     // Bật / Tắt Thước Đo Bản Đồ [G]
     document.getElementById('btn-toggle-grid')?.addEventListener('click', () => {
@@ -459,6 +498,8 @@ export class Engine {
       e.preventDefault();
       btnCycle.classList.add('pressed');
       const res = this.player.cycleTool();
+      this.fluteKite.isActive = (this.player.activeTool === 'kite');
+      if (this.fluteKite.isActive) this.sound.play('kite');
       this.showToast(res.label);
       this.updateActionButtonsUI();
     });
@@ -581,6 +622,8 @@ export class Engine {
       btnCycle.innerHTML = '⛏️ Cuốc Đất [Q]';
     } else if (this.player.activeTool === 'sickle') {
       btnCycle.innerHTML = '🌾 Liềm Cắt [Q]';
+    } else if (this.player.activeTool === 'kite') {
+      btnCycle.innerHTML = '🪁 Diều Sáo [Q]';
     } else {
       btnCycle.innerHTML = '🔄 Đổi Dụng Cụ [Q]';
     }
@@ -625,6 +668,14 @@ export class Engine {
       if (this.autoSaveTimer >= 4.0) {
         this.autoSaveTimer = 0;
         this.saveCurrentState();
+      }
+
+      // Cập nhật Diều Sáo Dân Gian khi đang kích hoạt
+      if (this.fluteKite.isActive) {
+        this.fluteKite.update(dt, this.player.x, this.player.y, this.player.vx, this.player.facing);
+        if (Math.abs(this.player.vx) > 40 && Math.random() < 0.005) {
+          this.sound.play('kite');
+        }
       }
 
       // VÒNG LẶP BẢN ĐỒ TUẦN HOÀN (Seamless World Wrap):
@@ -715,6 +766,9 @@ export class Engine {
 
     // F. Nhân Vật Chính (Đang bước đi / lội ruộng nước)
     this.player.render(ctx);
+
+    // F2. Diều Sáo Dân Gian & Sợi Dây Lụa Bay Lơ Lửng Trên Bầu Trời
+    this.fluteKite.render(ctx, this.player.x, this.player.y, this.player.facing);
 
     // G. Lớp Tiền Cảnh (Cây lúa tiền cảnh CHE NGANG CHÂN & THÂN NGƯỜI CHƠI + Hoa cỏ dại)
     this.floraManager.renderForegroundFlora(ctx, groundY, this.player.x, this.animTimer, this.cameraX, this.width);

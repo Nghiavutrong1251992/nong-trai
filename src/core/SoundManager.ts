@@ -368,7 +368,25 @@ export class SoundManager {
     s.osc.stop(s.t + 0.15);
   }
 
-  public play(name: 'harvest' | 'water' | 'click' | 'step' | 'coin' | string): void {
+  public playKiteFlute(): void {
+    if (!this.ctx || this.isMuted) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, t); // D5 sáo trúc
+    osc.frequency.exponentialRampToValueAtTime(659.25, t + 0.3); // E5
+    osc.frequency.exponentialRampToValueAtTime(587.33, t + 0.6);
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(0.08, t + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.75);
+  }
+
+  public play(name: 'harvest' | 'water' | 'click' | 'step' | 'coin' | 'kite' | string): void {
     if (name === 'harvest' || name === 'coin') {
       this.playCoin();
     } else if (name === 'water') {
@@ -377,6 +395,8 @@ export class SoundManager {
       this.playStep();
     } else if (name === 'click') {
       this.playWhack();
+    } else if (name === 'kite') {
+      this.playKiteFlute();
     }
   }
 }

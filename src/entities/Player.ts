@@ -12,8 +12,8 @@ export class Player {
   public height: number = 52;
   public isGrounded: boolean = false;
   public facing: number = 1; // 1: phải, -1: trái
-  public state: 'idle' | 'walk' | 'jump' | 'hoe' | 'cam_cuoc' | 'cam_thung_nuoc' | 'cam_liem' | 'harvest' | 'water' | 'fish' = 'idle';
-  public activeTool: 'none' | 'hoe' | 'water' | 'sickle' = 'none';
+  public state: 'idle' | 'walk' | 'jump' | 'hoe' | 'cam_cuoc' | 'cam_thung_nuoc' | 'cam_liem' | 'cam_dieu' | 'harvest' | 'water' | 'fish' = 'idle';
+  public activeTool: 'none' | 'hoe' | 'water' | 'sickle' | 'kite' = 'none';
   public animTimer: number = 0;
   public speed: number = 190;
   public jumpForce: number = -380;
@@ -95,9 +95,20 @@ export class Player {
       anchorOffsetX: -18.9,
       loopMode: 'loop'
     });
+
+    this.animator.registerClip('cam_dieu', {
+      src: '/assets/characters/player/cam_dieu.jpg',
+      frames: 12,
+      rows: 2,
+      fps: 10.5,
+      removeBg: true,
+      scaleMultiplier: 1.05,
+      anchorOffsetX: 0,
+      loopMode: 'loop'
+    });
   }
 
-  public selectTool(tool: 'none' | 'hoe' | 'water' | 'sickle'): void {
+  public selectTool(tool: 'none' | 'hoe' | 'water' | 'sickle' | 'kite'): void {
     if (this.activeTool === tool) {
       this.activeTool = 'none';
     } else {
@@ -106,7 +117,7 @@ export class Player {
   }
 
   public cycleTool(): { tool: string; label: string } {
-    const order: Array<'none' | 'hoe' | 'water' | 'sickle'> = ['none', 'hoe', 'water', 'sickle'];
+    const order: Array<'none' | 'hoe' | 'water' | 'sickle' | 'kite'> = ['none', 'hoe', 'water', 'sickle', 'kite'];
     const currIdx = order.indexOf(this.activeTool);
     const nextTool = order[(currIdx + 1) % order.length];
     this.activeTool = nextTool;
@@ -117,6 +128,8 @@ export class Player {
       return { tool: 'water', label: '💧 Đã trang bị: Thùng Tưới Nước (Ấn E để tưới cây)' };
     } else if (nextTool === 'sickle') {
       return { tool: 'sickle', label: '🌾 Đã trang bị: Liềm Cắt Lúa (Ấn E để thu hoạch)' };
+    } else if (nextTool === 'kite') {
+      return { tool: 'kite', label: '🪁 Đã trang bị: Diều Sáo Dân Gian (Vừa chạy vừa thả diều bay bổng)' };
     } else {
       return { tool: 'none', label: '🌿 Đã cất toàn bộ dụng cụ (Tay không thoải mái)' };
     }
@@ -213,6 +226,8 @@ export class Player {
       // Đang thực hiện action
     } else if (!this.isGrounded) {
       this.state = 'jump';
+    } else if (this.activeTool === 'kite') {
+      this.state = 'cam_dieu';
     } else if (Math.abs(this.vx) > 0) {
       this.state = 'walk';
     } else {
