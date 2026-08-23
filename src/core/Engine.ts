@@ -11,10 +11,10 @@ import { SoundManager } from './SoundManager';
 import { Player } from '../entities/Player';
 import { Buffalo } from '../entities/Buffalo';
 import { Cow } from '../entities/Cow';
-import { Calf } from '../entities/Calf';
 import { Stork } from '../entities/Stork';
 import { Hen } from '../entities/Hen';
 import { Rooster } from '../entities/Rooster';
+import { Pig } from '../entities/Pig';
 import { FluteKite } from '../entities/FluteKite';
 import { VegetableGirl } from '../entities/VegetableGirl';
 import { FloraManager } from '../graphics/plants/FloraManager';
@@ -35,9 +35,9 @@ export class Engine {
   public sound = new SoundManager();
   public player = new Player(400, 480);
   public buffalo = new Buffalo(980, 480);
-  public calf = new Calf(1050, 480);
   public hen = new Hen(880, 480);
   public rooster = new Rooster(940, 480);
+  public pig = new Pig(1020, 480);
   public stork = new Stork(1250, 480);
   public fluteKite = new FluteKite();
   public cow = new Cow(960, 480);
@@ -229,9 +229,6 @@ export class Engine {
       // Cập nhật Chú Trâu Mẹ
       this.buffalo.update(dt, this.groundY);
 
-      // Cập nhật Nghé Con (Lon ton theo mẹ)
-      this.calf.update(dt, this.groundY, this.buffalo.x);
-
       // Cập nhật Con Cò Trắng (Đứng ngắm cảnh, cất cánh & sà xuống ruộng lúa)
       this.stork.update(dt, this.groundY, this.player.x);
 
@@ -240,6 +237,9 @@ export class Engine {
 
       // Cập nhật Gà Trống (Đứng yên vỗ cánh, Mổ thóc, Đi dạo)
       this.rooster.update(dt, this.groundY, this.player.x);
+
+      // Cập nhật Chú Heo Hồng (Ăn, Đi dạo, Đứng lắc tai)
+      this.pig.update(dt, this.groundY);
 
       // Cập nhật Diều Sáo Dân Gian (Tạm ẩn theo yêu cầu)
       if (this.showFluteKite) {
@@ -307,10 +307,7 @@ export class Engine {
     // D. Chú Trâu Mẹ
     this.buffalo.render(ctx, this.showAnimalLabels);
 
-    // D2. Chú Nghé Con (Lon ton)
-    this.calf.render(ctx, this.showAnimalLabels);
-
-    // D3. Con Cò Trắng Đồng Quê
+    // D2. Con Cò Trắng Đồng Quê
     this.stork.render(ctx, this.showAnimalLabels);
 
     // D4. Gà Mái Loại 2
@@ -319,7 +316,10 @@ export class Engine {
     // D5. Gà Trống Dân Gian
     this.rooster.render(ctx, this.showAnimalLabels);
 
-    // D6. Chú Bò Nâu Làng Quê (Đã ẩn)
+    // D6. Chú Heo Hồng Làng Quê
+    this.pig.render(ctx, this.showAnimalLabels);
+
+    // D7. Chú Bò Nâu Làng Quê (Đã ẩn)
     if (this.showCow) {
       this.cow.render(ctx, this.showAnimalLabels);
     }

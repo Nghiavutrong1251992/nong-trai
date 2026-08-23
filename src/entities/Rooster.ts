@@ -25,7 +25,7 @@ export class Rooster {
   public y: number;
   public vx: number = 24; // Vận tốc đi bộ dũng mãnh
   public facing: number = 1; // 1: quay phải, -1: quay trái (Sprite gốc quay sang PHẢI)
-  public targetHeight: number = 74; // Chiều cao gà trống cao ráo dũng mãnh (74px)
+  public targetHeight: number = 52; // Thu nhỏ 30% (74 * 0.70 = 52px)
 
   // Sprite Sheet 1: Đi dạo (26 frames)
   private walkSheet = new Image();

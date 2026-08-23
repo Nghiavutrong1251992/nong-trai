@@ -25,7 +25,7 @@ export class Hen {
   public y: number;
   public vx: number = 22; // Vận tốc đi bộ
   public facing: number = 1; // 1: quay phải, -1: quay trái (Sprite gốc quay sang PHẢI)
-  public targetHeight: number = 68; // Chiều cao gà mái mẹ
+  public targetHeight: number = 41; // Thu nhỏ 40% (68 * 0.60 = 41px)
 
   // Sprite Sheets Gà Mái Loại 2
   private walkSheet = new Image();
