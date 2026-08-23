@@ -13,6 +13,8 @@ import { Buffalo } from '../entities/Buffalo';
 import { Cow } from '../entities/Cow';
 import { Calf } from '../entities/Calf';
 import { Stork } from '../entities/Stork';
+import { Hen } from '../entities/Hen';
+import { Rooster } from '../entities/Rooster';
 import { FluteKite } from '../entities/FluteKite';
 import { VegetableGirl } from '../entities/VegetableGirl';
 import { FloraManager } from '../graphics/plants/FloraManager';
@@ -32,8 +34,10 @@ export class Engine {
   // Entities & Graphics Managers
   public sound = new SoundManager();
   public player = new Player(400, 480);
-  public buffalo = new Buffalo(560, 480);
-  public calf = new Calf(690, 480);
+  public buffalo = new Buffalo(980, 480);
+  public calf = new Calf(1050, 480);
+  public hen = new Hen(880, 480);
+  public rooster = new Rooster(940, 480);
   public stork = new Stork(1250, 480);
   public fluteKite = new FluteKite();
   public cow = new Cow(960, 480);
@@ -231,6 +235,12 @@ export class Engine {
       // Cập nhật Con Cò Trắng (Đứng ngắm cảnh, cất cánh & sà xuống ruộng lúa)
       this.stork.update(dt, this.groundY, this.player.x);
 
+      // Cập nhật Gà Mái Loại 2 (Đi dạo & Mổ thóc)
+      this.hen.update(dt, this.groundY, this.player.x);
+
+      // Cập nhật Gà Trống (Đứng yên vỗ cánh, Mổ thóc, Đi dạo)
+      this.rooster.update(dt, this.groundY, this.player.x);
+
       // Cập nhật Diều Sáo Dân Gian (Tạm ẩn theo yêu cầu)
       if (this.showFluteKite) {
         this.fluteKite.update(dt, this.player.x, this.player.y, this.player.vx, this.player.facing);
@@ -283,11 +293,11 @@ export class Engine {
     ctx.save();
     ctx.translate(-Math.round(this.cameraX), 0);
 
-    // A. Mặt Đất Đồng Cỏ & Phù Sa & Hồ Cá Làng Quê
-    this.floraManager.renderGround(ctx, this.width, this.height, groundY, this.animTimer, this.player.x);
-
-    // B. Cảnh Quan Hậu Cảnh (Ngôi Nhà Ngói Đỏ 3 Gian, Rặng Tre Làng, Vườn Chuối)
+    // 1. Cảnh Quan Hậu Cảnh (Ngôi Nhà Tranh, Rặng Tre Làng, Vườn Chuối) - Vẽ ở lớp sau
     this.floraManager.renderBackgroundTrees(ctx, groundY, this.animTimer, this.player.x, this.cameraX, this.width);
+
+    // 2. Lớp Mặt Đất Đồng Cỏ & Đồi Đất & Hồ Cá - Vẽ đè lên trên để Đất che chân tre & sườn đồi
+    this.floraManager.renderGround(ctx, this.width, this.height, groundY, this.animTimer, this.player.x);
 
 
 
@@ -303,7 +313,13 @@ export class Engine {
     // D3. Con Cò Trắng Đồng Quê
     this.stork.render(ctx, this.showAnimalLabels);
 
-    // D4. Chú Bò Nâu Làng Quê (Đã ẩn)
+    // D4. Gà Mái Loại 2
+    this.hen.render(ctx, this.showAnimalLabels);
+
+    // D5. Gà Trống Dân Gian
+    this.rooster.render(ctx, this.showAnimalLabels);
+
+    // D6. Chú Bò Nâu Làng Quê (Đã ẩn)
     if (this.showCow) {
       this.cow.render(ctx, this.showAnimalLabels);
     }

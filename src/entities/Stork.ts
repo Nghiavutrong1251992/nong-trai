@@ -84,8 +84,8 @@ export class Stork {
         this.stateTimer = 0;
         this.animTimer = 0;
 
-        // Chọn bến đỗ mới trên cánh đồng (từ 200m -> 2100m)
-        this.targetX = 200 + Math.random() * 1900;
+        // Chọn bến đỗ mới trên bãi cỏ & ruộng lúa (từ 850m -> 3450m, tránh hồ nước)
+        this.targetX = 850 + Math.random() * 2600;
         this.facing = this.targetX > this.x ? 1 : -1;
       }
     }

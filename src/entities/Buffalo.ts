@@ -10,57 +10,54 @@ import { GroundPlatform } from '../graphics/plants/GroundPlatform';
 export class Buffalo {
   public x: number;
   public y: number;
-  public vx: number = 24; // Tốc độ đi dạo chậm rãi
+  public vx: number = 26; // Tốc độ đi dạo chậm rãi
   public facing: number = 1; // 1: phải, -1: trái
-  public targetHeight: number = 100;
+  public targetHeight: number = 115;
 
-  // Sprite Sheet 1: Đi dạo (5 frames)
+  // Sprite Sheet 1: Đi dạo (26 frames)
   private walkSheet = new Image();
   private walkLoaded: boolean = false;
-  private walkFrames: number = 5;
-  private walkFps: number = 7.0;
+  private walkFrames: number = 26;
+  private walkFps: number = 12.0;
 
-  // Sprite Sheet 2: Ăn cỏ (34 frames)
+  // Sprite Sheet 2: Ăn cỏ (33 frames)
   private grazeSheet = new Image();
   private grazeLoaded: boolean = false;
-  private grazeFrames: number = 34;
-  private grazeFps: number = 6.0;
+  private grazeFrames: number = 33;
+  private grazeFps: number = 10.0;
 
-  // Sprite Sheet 3: Đứng yên gốc (8 frames trích xuất từ thư mục dung yen)
+  // Sprite Sheet 3: Đứng yên (21 frames)
   private idleSheet = new Image();
   private idleLoaded: boolean = false;
-  private idleFrames: number = 8;
-  private idleFps: number = 6.0;
+  private idleFrames: number = 21;
+  private idleFps: number = 9.0;
 
   private animTimer: number = 0;
 
   // AI Roaming, Idle & Grazing State Machine (Mặc định đứng yên)
   public state: 'idle' | 'walk' | 'graze' = 'idle';
   private stateTimer: number = 0;
-  private minX: number = 180;
-  private maxX: number = 1340;
+  private minX: number = 820; // Giới hạn chỉ đi trên bãi cỏ, không đi vào hồ nước (hồ nước: 30m -> 770m)
+  private maxX: number = 2500;
 
-  constructor(x: number = 520, y: number = 480) {
+  constructor(x: number = 980, y: number = 480) {
     this.x = x;
     this.y = y;
 
-    this.walkSheet.src = '/assets/characters/buffalo/buffalo_walk_custom.png?v=' + Date.now();
+    this.walkSheet.src = '/assets/characters/brown_buffalo/buffalo_walk_sheet.png?v=' + Date.now();
     this.walkSheet.onload = () => {
       this.walkLoaded = true;
     };
 
-    this.grazeSheet.src = '/assets/characters/buffalo/buffalo_graze_custom.png?v=' + Date.now();
+    this.grazeSheet.src = '/assets/characters/brown_buffalo/buffalo_graze_sheet.png?v=' + Date.now();
     this.grazeSheet.onload = () => {
       this.grazeLoaded = true;
     };
 
-    this.idleSheet.src = '/assets/characters/buffalo/buffalo_idle_custom.png?v=' + Date.now();
+    this.idleSheet.src = '/assets/characters/brown_buffalo/buffalo_idle_sheet.png?v=' + Date.now();
     this.idleSheet.onload = () => {
       this.idleLoaded = true;
     };
-
-
-
   }
 
   public update(dt: number, groundY: number): void {
@@ -80,7 +77,7 @@ export class Buffalo {
         }
       }
     } else if (this.state === 'graze') {
-      const fullGrazeDuration = this.grazeFrames / this.grazeFps; // ~5.67s
+      const fullGrazeDuration = this.grazeFrames / this.grazeFps; // ~3.3s
       if (this.stateTimer >= fullGrazeDuration) {
         this.state = Math.random() < 0.5 ? 'idle' : 'walk';
         this.stateTimer = 0;
@@ -99,18 +96,18 @@ export class Buffalo {
       }
     }
 
-    // Di chuyển vị trí khi ở trạng thái Walk
+    // Di chuyển vị trí khi ở trạng thái Walk (chỉ trên khu vực cỏ)
     if (this.state === 'walk') {
       this.x += this.vx * dt;
-      if (this.x < this.minX) {
-        this.x = this.minX;
-        this.facing = 1;
-        this.vx = 22;
-      } else if (this.x > this.maxX) {
-        this.x = this.maxX;
-        this.facing = -1;
-        this.vx = -22;
-      }
+    }
+    if (this.x < this.minX) {
+      this.x = this.minX;
+      this.facing = 1;
+      this.vx = 22;
+    } else if (this.x > this.maxX) {
+      this.x = this.maxX;
+      this.facing = -1;
+      this.vx = -22;
     }
   }
 
@@ -142,13 +139,13 @@ export class Buffalo {
     const scale = this.targetHeight / frameH;
     const renderW = frameW * scale;
     const renderH = this.targetHeight;
-    const feetYOffset = (196.0 / frameH) * renderH; // Căn chỉnh móng chân tiếp đất chuẩn xác
+    const feetYOffset = renderH - 8; // Căn chỉnh móng chân tiếp đất chuẩn xác
 
     ctx.save();
     ctx.translate(Math.round(this.x), Math.round(this.y));
 
-    // 1. Hướng nhìn trái / phải (Sprite gốc quay sang TRÁI -> khi đi sang PHẢI cần scale -1)
-    if (this.facing > 0) {
+    // 1. Hướng nhìn trái / phải (Sprite gốc quay sang PHẢI -> khi quay sang TRÁI cần scale -1)
+    if (this.facing < 0) {
       ctx.scale(-1, 1);
     }
 
@@ -157,7 +154,7 @@ export class Buffalo {
     ctx.drawImage(
       activeSheet,
       sx, 0, frameW, frameH,
-      -renderW / 2, -feetYOffset + 4, renderW, renderH
+      -renderW / 2, -feetYOffset, renderW, renderH
     );
 
     ctx.restore();
@@ -223,22 +220,21 @@ export class Buffalo {
     const scale = targetH / frameH;
     const renderW = frameW * scale;
     const renderH = targetH;
-    const feetYOffset = (196.0 / frameH) * renderH;
+    const feetYOffset = renderH - 8;
 
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
 
-    // Hướng nhìn (Sprite gốc quay sang TRÁI -> khi facing > 0 thì scale -1)
-    if (facing > 0) {
+    // Hướng nhìn (Sprite gốc quay sang PHẢI -> khi quay sang TRÁI cần scale -1)
+    if (facing < 0) {
       ctx.scale(-1, 1);
     }
-
 
     const sx = Math.floor(currentFrame * frameW);
     ctx.drawImage(
       activeSheet,
       sx, 0, frameW, frameH,
-      -renderW / 2, -feetYOffset + 4, renderW, renderH
+      -renderW / 2, -feetYOffset, renderW, renderH
     );
 
     ctx.restore();

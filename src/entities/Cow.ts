@@ -37,10 +37,10 @@ export class Cow {
   // AI Roaming & Grazing State Machine (Mặc định đứng yên gặm cỏ)
   public state: 'idle' | 'walk' | 'graze' = 'idle';
   private stateTimer: number = 0;
-  private minX: number = 650;
-  private maxX: number = 1850;
+  private minX: number = 820; // Giới hạn chỉ đi trên bãi cỏ, không đi vào hồ nước
+  private maxX: number = 2500;
 
-  constructor(x: number = 920, y: number = 480) {
+  constructor(x: number = 1150, y: number = 480) {
     this.x = x;
     this.y = y;
 
@@ -66,7 +66,7 @@ export class Cow {
     this.stateTimer += dt;
     this.y = GroundPlatform.getGroundY(this.x, groundY);
 
-    // Chu kỳ tự nhiên: Đứng yên ngắm cảnh -> Gặm cỏ -> Đi dạo quanh đồng cỏ
+    // AI nhàn nhã: Đứng yên ngắm cảnh -> Cúi gặm cỏ -> Đi dạo
     if (this.state === 'idle') {
       if (this.stateTimer >= 3.5 + Math.random() * 2.5) {
         this.state = Math.random() < 0.6 ? 'graze' : 'walk';
@@ -78,7 +78,7 @@ export class Cow {
         }
       }
     } else if (this.state === 'graze') {
-      const fullGrazeDuration = this.grazeFrames / this.grazeFps; // ~5.8s
+      const fullGrazeDuration = this.grazeFrames / this.grazeFps; // ~3.5s
       if (this.stateTimer >= fullGrazeDuration) {
         this.state = Math.random() < 0.5 ? 'idle' : 'walk';
         this.stateTimer = 0;
@@ -97,18 +97,18 @@ export class Cow {
       }
     }
 
-    // Di chuyển khi ở trạng thái Walk
+    // Di chuyển khi ở trạng thái Walk (chỉ trên khu vực cỏ)
     if (this.state === 'walk') {
       this.x += this.vx * dt;
-      if (this.x < this.minX) {
-        this.x = this.minX;
-        this.facing = 1;
-        this.vx = 20;
-      } else if (this.x > this.maxX) {
-        this.x = this.maxX;
-        this.facing = -1;
-        this.vx = -20;
-      }
+    }
+    if (this.x < this.minX) {
+      this.x = this.minX;
+      this.facing = 1;
+      this.vx = 20;
+    } else if (this.x > this.maxX) {
+      this.x = this.maxX;
+      this.facing = -1;
+      this.vx = -20;
     }
   }
 
