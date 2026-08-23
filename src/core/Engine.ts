@@ -50,7 +50,7 @@ export class Engine {
   public groundY: number = 480;
   public animTimer: number = 0;
   public cameraX: number = 0;
-  public mapWidth: number = 2800; // Chiều dài Map 1 Mở Rộng (2800px)
+  public mapWidth: number = 4200; // Chiều dài Bản Đồ Mở Rộng 21 Phân Đoạn (4200m)
 
 
   public showMapRuler: boolean = true; // Bật/Tắt Lưới Thước Đo [G]
@@ -91,7 +91,7 @@ export class Engine {
       }
       if (saved.player) {
         let px = saved.player.x ?? 450;
-        if (isNaN(px) || px < -350 || px > 2700) px = 450;
+        if (isNaN(px) || px < -350 || px > 4150) px = 450;
         this.player.x = px;
         this.player.carriedBananas = saved.player.carriedBananas ?? [];
         this.player.coins = saved.player.coins ?? 250;

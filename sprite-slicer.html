@@ -1,0 +1,2411 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sprite Capture Studio — Chụp Khung Hình Chuẩn Kích Thước</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #f59e0b;
+      --accent: #38bdf8;
+      --bg-dark: #0f172a;
+      --bg-card: rgba(30, 41, 59, 0.85);
+      --bg-input: rgba(15, 23, 42, 0.65);
+      --border-color: rgba(255, 255, 255, 0.12);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --danger: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 60%, #020617 100%);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Header */
+    header {
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      flex-shrink: 0;
+    }
+
+    .logo-group { display: flex; align-items: center; gap: 12px; }
+
+    .logo-badge {
+      background: linear-gradient(135deg, #f59e0b, #ea580c);
+      width: 34px; height: 34px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+    }
+
+    .logo-title {
+      font-size: 16px; font-weight: 800;
+      background: linear-gradient(90deg, #fde047, #f59e0b, #fb923c);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo-sub { font-size: 11px; color: var(--text-muted); }
+
+    .btn {
+      padding: 7px 14px; border-radius: 8px;
+      border: 1px solid var(--border-color);
+      font-weight: 600; font-size: 12px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      transition: all 0.2s; background: var(--bg-card); color: var(--text-main);
+    }
+    .btn:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.3); box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary { background: linear-gradient(135deg, #f59e0b, #d97706); color: #0f172a; border: none; font-weight: 700; }
+    .btn-primary:hover { background: linear-gradient(135deg, #fbbf24, #f59e0b); box-shadow: 0 4px 18px rgba(245,158,11,0.45); }
+
+    .btn-accent { background: linear-gradient(135deg, #38bdf8, #0284c7); color: #0f172a; border: none; font-weight: 700; }
+
+    .btn-success { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; border: none; font-weight: 700; }
+    .btn-success:hover { box-shadow: 0 4px 18px rgba(34,197,94,0.45); }
+
+    .btn-danger { background: rgba(239,68,68,0.2); color: #f87171; border-color: rgba(239,68,68,0.4); }
+    .btn-danger:hover { background: #ef4444; color: white; }
+
+    .btn-lg { padding: 12px 20px; font-size: 14px; }
+
+    .badge {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 10px; font-weight: 700;
+    }
+    .badge-primary { background: rgba(245,158,11,0.2); color: #fde047; }
+    .badge-accent { background: rgba(56,189,248,0.2); color: #7dd3fc; }
+
+    /* Main Layout: Left Settings | Center Canvas | Right Captured Frames */
+    .workspace {
+      display: grid;
+      grid-template-columns: 260px 1fr 280px;
+      gap: 0;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Left Settings Panel */
+    .side-panel {
+      background: rgba(15, 23, 42, 0.85);
+      border-right: 1px solid var(--border-color);
+      display: flex; flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .sp-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 13px; font-weight: 700;
+      background: rgba(15,23,42,0.5);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .sp-body {
+      padding: 12px;
+      display: flex; flex-direction: column; gap: 12px;
+      flex: 1;
+    }
+
+    .ctrl-group {
+      background: var(--bg-input);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 10px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+
+    .ctrl-label {
+      font-size: 11px; font-weight: 800; color: var(--accent);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    label { font-size: 11.5px; color: var(--text-muted); display: block; margin-bottom: 3px; font-weight: 500; }
+
+    input[type="number"], select {
+      width: 100%; background: rgba(15,23,42,0.8);
+      border: 1px solid var(--border-color); border-radius: 6px;
+      padding: 5px 8px; color: var(--text-main);
+      font-size: 12.5px; font-weight: 600; outline: none;
+    }
+    input[type="number"]:focus, select:focus { border-color: var(--accent); }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+    .range-wrap { display: flex; align-items: center; gap: 8px; }
+    input[type="range"] { flex: 1; accent-color: var(--primary); height: 5px; cursor: pointer; }
+    .range-val { font-size: 11px; font-weight: 700; color: #fde047; min-width: 30px; text-align: right; }
+
+    .checkbox-row {
+      display: flex; align-items: center; gap: 7px; cursor: pointer;
+      font-size: 12px; font-weight: 600; color: var(--text-main);
+    }
+    .checkbox-row input { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
+
+    .hint-box {
+      background: rgba(56,189,248,0.08);
+      border-left: 3px solid var(--accent);
+      padding: 8px 10px; border-radius: 0 6px 6px 0;
+      font-size: 10.5px; color: #93c5fd; line-height: 1.5;
+    }
+
+    /* Center Canvas Viewport */
+    .center-stage {
+      position: relative;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      background: #080c14;
+    }
+
+    .canvas-toolbar {
+      padding: 6px 14px;
+      background: rgba(15,23,42,0.85);
+      border-bottom: 1px solid var(--border-color);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; flex-shrink: 0; flex-wrap: wrap;
+    }
+
+    .viewport {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+      /* Checkerboard background */
+      background-color: #0c121e;
+      background-image:
+        linear-gradient(45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(-45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #141d2e 75%),
+        linear-gradient(-45deg, transparent 75%, #141d2e 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    }
+
+    .viewport:active { cursor: grabbing; }
+
+    /* The source image rendered on a canvas that we can pan/zoom */
+    #imgCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      transform-origin: 0 0;
+      image-rendering: auto;
+    }
+
+    /* The fixed capture frame overlay */
+    .capture-frame {
+      position: absolute;
+      border: 2.5px solid #f59e0b;
+      box-shadow:
+        0 0 0 4000px rgba(0, 0, 0, 0.55),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+      pointer-events: none;
+      z-index: 20;
+      transition: width 0.2s, height 0.2s;
+    }
+
+    .capture-frame-label {
+      position: absolute;
+      bottom: -28px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(245, 158, 11, 0.95);
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 12px;
+      border-radius: 6px;
+      white-space: nowrap;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+    }
+
+    .capture-frame-crosshair-h,
+    .capture-frame-crosshair-v {
+      position: absolute;
+      background: rgba(245, 158, 11, 0.25);
+      pointer-events: none;
+    }
+    .capture-frame-crosshair-h { left: 0; right: 0; height: 1px; top: 50%; }
+    .capture-frame-crosshair-v { top: 0; bottom: 0; width: 1px; left: 50%; }
+
+    /* Ground line inside capture frame */
+    .ground-guide {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: rgba(34, 197, 94, 0.7);
+      box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+      pointer-events: none;
+      z-index: 21;
+    }
+
+    .ground-guide-label {
+      position: absolute;
+      right: 4px;
+      top: -14px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #4ade80;
+      pointer-events: none;
+    }
+
+    /* Upload Overlay */
+    .upload-overlay {
+      position: absolute;
+      inset: 20px;
+      border: 2px dashed rgba(245,158,11,0.5);
+      border-radius: 16px;
+      background: rgba(15,23,42,0.85);
+      backdrop-filter: blur(10px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 14px;
+      cursor: pointer;
+      z-index: 30;
+      transition: all 0.2s;
+    }
+    .upload-overlay:hover, .upload-overlay.dragover {
+      border-color: #fde047;
+      background: rgba(30,41,59,0.95);
+    }
+    .upload-overlay .upload-icon { font-size: 48px; }
+    .upload-overlay .upload-title { font-size: 16px; font-weight: 700; }
+    .upload-overlay .upload-desc { font-size: 12px; color: var(--text-muted); text-align: center; max-width: 320px; }
+
+    /* Right Panel: Captured Frames Gallery */
+    .right-panel {
+      background: rgba(15, 23, 42, 0.85);
+      border-left: 1px solid var(--border-color);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+
+    .gallery-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 13px; font-weight: 700;
+      background: rgba(15,23,42,0.5);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .gallery-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .captured-slot {
+      background: rgba(30, 41, 59, 0.7);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 8px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .captured-slot:hover { border-color: var(--accent); }
+    .captured-slot.active { border-color: var(--primary); box-shadow: 0 0 12px rgba(245,158,11,0.3); }
+    .captured-slot.empty { opacity: 0.5; border-style: dashed; }
+
+    .slot-number {
+      width: 28px; height: 28px;
+      background: rgba(245,158,11,0.15);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; color: #fde047;
+      flex-shrink: 0;
+    }
+
+    .slot-preview {
+      width: 56px; height: 56px;
+      background:
+        linear-gradient(45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1e293b 75%),
+        linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+      background-size: 8px 8px;
+      background-position: 0 0, 0 4px, 4px -4px, -4px 0;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.1);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .slot-preview canvas {
+      max-width: 100%; max-height: 100%; object-fit: contain;
+    }
+
+    .slot-info {
+      flex: 1;
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .slot-info strong { color: var(--text-main); font-size: 12px; }
+
+    .slot-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .slot-btn {
+      padding: 3px 6px;
+      font-size: 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(15,23,42,0.8);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .slot-btn:hover { color: #f87171; border-color: #f87171; }
+
+    .captured-slot[draggable="true"] { cursor: grab; }
+    .captured-slot[draggable="true"]:active { cursor: grabbing; }
+    .captured-slot.dragging { opacity: 0.3; transform: scale(0.95); }
+    .captured-slot.drag-over {
+      border-color: #fde047;
+      box-shadow: 0 0 16px rgba(253,224,71,0.35);
+      background: rgba(245,158,11,0.08);
+    }
+
+    .gallery-footer {
+      border-top: 1px solid var(--border-color);
+      display: flex; flex-direction: column;
+      background: rgba(15, 23, 42, 0.95);
+      flex-shrink: 0;
+      transition: all 0.25s ease;
+      max-height: 480px;
+    }
+
+    .gallery-footer.collapsed {
+      max-height: 38px;
+    }
+
+    .footer-toggle-bar {
+      padding: 8px 12px;
+      background: rgba(30, 41, 59, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+      color: #fde047;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      user-select: none;
+    }
+    .footer-toggle-bar:hover { background: rgba(51, 65, 85, 0.9); }
+
+    .footer-content-wrap {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      max-height: 440px;
+    }
+    .gallery-footer.collapsed .footer-content-wrap {
+      display: none;
+    }
+
+    /* Animation Preview Area at bottom of gallery */
+    .anim-preview-box {
+      background: rgba(15,23,42,0.9);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #animCanvas {
+      image-rendering: pixelated;
+      max-width: 110px; max-height: 110px;
+      border-radius: 4px;
+    }
+
+    .anim-controls {
+      display: flex; align-items: center; gap: 6px; width: 100%;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 18px; right: 18px;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid var(--accent);
+      color: #f8fafc; padding: 10px 18px;
+      border-radius: 10px; font-size: 12.5px; font-weight: 600;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      opacity: 0; transform: translateY(10px);
+      transition: all 0.3s; pointer-events: none; z-index: 1000;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ===== ERASER EDITOR MODAL ===== */
+    .eraser-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.92);
+      backdrop-filter: blur(12px);
+      z-index: 500;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .eraser-overlay.open { display: flex; }
+
+    .eraser-header {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 10px 20px;
+      background: rgba(15,23,42,0.9);
+      border-bottom: 1px solid var(--border-color);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px;
+      z-index: 510;
+    }
+
+    .eraser-title {
+      font-size: 15px; font-weight: 800;
+      color: #fde047;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .eraser-tools {
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .eraser-tools label {
+      color: var(--text-muted); font-size: 11.5px; margin-bottom: 0;
+    }
+
+    .tool-btn {
+      padding: 6px 12px; border-radius: 6px;
+      border: 1.5px solid var(--border-color);
+      background: rgba(30,41,59,0.9);
+      color: var(--text-main); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .tool-btn:hover { border-color: rgba(255,255,255,0.3); }
+    .tool-btn.active { border-color: var(--primary); background: rgba(245,158,11,0.15); color: #fde047; }
+
+    .eraser-canvas-wrap {
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+      flex: 1;
+      padding-top: 54px;
+    }
+
+    #eraserCanvas {
+      image-rendering: pixelated;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 4px;
+      cursor: none;
+      /* Checkerboard for transparency */
+      background-color: #1e293b;
+      background-image:
+        linear-gradient(45deg, #334155 25%, transparent 25%),
+        linear-gradient(-45deg, #334155 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #334155 75%),
+        linear-gradient(-45deg, transparent 75%, #334155 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+
+    .eraser-cursor {
+      position: fixed;
+      border: 2px solid #f59e0b;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 520;
+      box-shadow: 0 0 6px rgba(245,158,11,0.5);
+      display: none;
+    }
+
+    .eraser-footer {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 10px 20px;
+      background: rgba(15,23,42,0.9);
+      border-top: 1px solid var(--border-color);
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px;
+      z-index: 510;
+    }
+
+    /* ===== GHOST ONION SKIN & COMPARATOR MODAL ===== */
+    #ghostCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .comparator-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.94);
+      backdrop-filter: blur(14px);
+      z-index: 600;
+      display: none;
+      flex-direction: column;
+    }
+    .comparator-overlay.open { display: flex; }
+
+    .comparator-header {
+      padding: 12px 24px;
+      background: rgba(15,23,42,0.95);
+      border-bottom: 1px solid var(--border-color);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .comparator-title {
+      font-size: 16px; font-weight: 800; color: #fde047;
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .comparator-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 0;
+      overflow: hidden;
+    }
+
+    .comparator-stage {
+      background: #080c14;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      /* Checkerboard */
+      background-color: #0c121e;
+      background-image:
+        linear-gradient(45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(-45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #141d2e 75%),
+        linear-gradient(-45deg, transparent 75%, #141d2e 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    }
+
+    .comparator-canvas-box {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 40px;
+      padding: 40px;
+    }
+
+    .comp-actor-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+
+    .comp-actor-label {
+      font-size: 13px; font-weight: 700; color: #94a3b8;
+      background: rgba(15,23,42,0.8);
+      padding: 4px 12px; border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+    .comp-actor-label.primary { color: #fde047; border-color: rgba(245,158,11,0.4); }
+
+    .comp-canvas-card {
+      position: relative;
+      background: rgba(15, 23, 42, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .comp-canvas-card canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    .comp-ground-guide {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .comparator-panel {
+      background: rgba(15, 23, 42, 0.9);
+      border-left: 1px solid var(--border-color);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    .comparator-footer {
+      padding: 12px 24px;
+      background: rgba(15,23,42,0.95);
+      border-top: 1px solid var(--border-color);
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-group">
+      <div class="logo-badge">📷</div>
+      <div>
+        <div class="logo-title">Sprite Capture Studio</div>
+        <div class="logo-sub">Zoom ảnh AI & Chụp từng khung chuẩn kích thước • Tạo chuỗi Spritesheet hoàn hảo</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()" title="Ctrl+O">📁 Mở / Đổi Ảnh Khác</button>
+      <button class="btn" style="background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.4); color: #7dd3fc;" onclick="window.location.href='/video-to-frames.html'">🎬 Cắt Video ra Frame</button>
+      <button class="btn btn-success" onclick="saveProject()" title="Ctrl+S">💾 Lưu</button>
+      <button class="btn" onclick="loadProject()">📂 Tải lại bản lưu</button>
+      <button class="btn" onclick="window.location.href='/'">🎮 Vào Game</button>
+    </div>
+  </header>
+
+  <!-- Workspace -->
+  <div class="workspace">
+    
+    <!-- LEFT: Settings -->
+    <div class="side-panel">
+      <div class="sp-header">
+        <span>⚙️ CẤU HÌNH KHUNG CHỤP</span>
+      </div>
+
+      <div class="sp-body">
+
+        <!-- Upload -->
+        <button class="btn btn-primary" style="width: 100%;" onclick="document.getElementById('fileInput').click()">
+          📁 Chọn / Đổi Ảnh Gốc
+        </button>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+
+        <!-- Frame Size -->
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Kích thước Khung Chụp</span>
+            <span class="badge badge-primary">Capture Frame</span>
+          </div>
+
+          <div>
+            <label>Chọn nhanh mẫu chuẩn:</label>
+            <select id="presetSize" onchange="applyPreset(this.value)">
+              <option value="custom">Tùy chọn...</option>
+              <option value="128x128">128 × 128 px</option>
+              <option value="160x160" selected>160 × 160 px (Gà / Vịt)</option>
+              <option value="200x200">200 × 200 px (Cò)</option>
+              <option value="260x203">260 × 203 px (Nghé Con)</option>
+              <option value="280x203">280 × 203 px (Trâu / Bò)</option>
+              <option value="380x380">380 × 380 px (Nông Dân HD)</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <label>Chiều rộng (W):</label>
+              <input type="number" id="frameW" value="160" min="32" max="800" onchange="updateCaptureFrame()">
+            </div>
+            <div>
+              <label>Chiều cao (H):</label>
+              <input type="number" id="frameH" value="160" min="32" max="800" onchange="updateCaptureFrame()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Zoom -->
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Zoom Ảnh Gốc</span>
+            <span class="range-val" id="zoomLabel">100%</span>
+          </div>
+
+          <div class="range-wrap">
+            <input type="range" id="zoomSlider" min="10" max="400" value="100" oninput="setZoomFromSlider(this.value)">
+          </div>
+
+          <div class="form-row">
+            <button class="btn" onclick="zoomBy(0.8)">🔍 − Thu nhỏ</button>
+            <button class="btn" onclick="zoomBy(1.25)">🔍 + Phóng to</button>
+          </div>
+          <button class="btn" onclick="fitImageInView()">🖼️ Vừa Màn Hình</button>
+        </div>
+
+        <!-- Ground Anchor -->
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Đường mặt đất (Ground Line)</span>
+          </div>
+
+          <div>
+            <label>Vị trí mặt đất trong khung (%):</label>
+            <div class="range-wrap">
+              <input type="range" id="groundY" min="50" max="100" value="90" oninput="updateGroundLine()">
+              <span class="range-val" id="groundYLabel">90%</span>
+            </div>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="chkShowGround" checked onchange="updateGroundLine()">
+            <span>Hiện đường dóng mặt đất</span>
+          </label>
+        </div>
+
+        <!-- Reference & Ghost Overlay (So sánh kích thước) -->
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Bóng Ma Đối Chiếu (Ghost)</span>
+            <span class="badge badge-accent">Onion Skin</span>
+          </div>
+
+          <div>
+            <label>Chọn nhanh hành động mẫu:</label>
+            <select id="refPresetSelect" onchange="loadRefPreset(this.value)">
+              <option value="none">-- Tùy chọn ảnh riêng --</option>
+              <option value="/assets/characters/chick/chick_idle.png">🐣 Gà Con (Đứng yên - Idle)</option>
+              <option value="/assets/characters/chick/chick_peck.png">🐣 Gà Con (Mổ thóc - Peck)</option>
+              <option value="/assets/characters/buffalo/buffalo_walk.png">🐃 Trâu (Đi bộ - Walk)</option>
+              <option value="/assets/characters/calf/calf_idle.png">🐂 Nghé Con (Đứng yên)</option>
+              <option value="/assets/characters/stork/stork_fly.png">🕊️ Cò (Bay - Fly)</option>
+            </select>
+          </div>
+
+          <button class="btn" style="width: 100%; font-size: 11.5px;" onclick="document.getElementById('refFileInput').click()">
+            🔍 Tải Ảnh Mẫu Khác Từ Máy
+          </button>
+          <input type="file" id="refFileInput" accept="image/*" style="display: none;">
+
+          <label class="checkbox-row" style="margin-top: 4px;">
+            <input type="checkbox" id="chkShowGhost" checked onchange="updateGhostOverlay()">
+            <span>Hiện bóng ma đè lên khung chụp</span>
+          </label>
+
+          <div id="ghostControlsArea" style="display: flex; flex-direction: column; gap: 6px;">
+            <div>
+              <label>Độ mờ bóng ma:</label>
+              <div class="range-wrap">
+                <input type="range" id="ghostOpacity" min="10" max="90" value="45" oninput="updateGhostOverlay()">
+                <span class="range-val" id="ghostOpacityLabel">45%</span>
+              </div>
+            </div>
+
+            <div>
+              <label>Tỷ lệ bóng ma (%):</label>
+              <div class="range-wrap">
+                <input type="range" id="ghostScale" min="50" max="200" value="100" oninput="updateGhostOverlay()">
+                <span class="range-val" id="ghostScaleLabel">100%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Background Removal -->
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Xử lý phông nền</span>
+            <span class="badge badge-accent">Anti-Halo</span>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="chkRemoveBg" checked>
+            <span>Tẩy phông trắng (Transparent)</span>
+          </label>
+
+          <div>
+            <label>Ngưỡng nhạy tẩy nền:</label>
+            <div class="range-wrap">
+              <input type="range" id="bgThreshold" min="10" max="80" value="35">
+              <span class="range-val" id="bgThreshLabel">35</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- How-to Guide -->
+        <div class="hint-box">
+          📷 <strong>Cách sử dụng:</strong><br>
+          1. Tải ảnh dải AI lên.<br>
+          2. Zoom & Kéo ảnh để nhân vật thứ nhất nằm vừa trong khung vàng.<br>
+          3. Bấm <strong>📷 CHỤP</strong> để lưu Frame 1.<br>
+          4. Kéo ảnh sang nhân vật tiếp theo rồi chụp Frame 2, 3, 4...<br>
+          5. Bấm <strong>💾 Tải Spritesheet</strong> khi hoàn tất!
+        </div>
+
+      </div>
+    </div>
+
+    <!-- CENTER: Canvas Viewport -->
+    <div class="center-stage">
+      <div class="canvas-toolbar">
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn btn-success btn-lg" id="btnCapture" onclick="captureFrame()">
+            📷 CHỤP KHUNG HÌNH
+          </button>
+          <button class="btn" style="background: rgba(56,189,248,0.2); border-color: var(--accent); color: #7dd3fc;" onclick="document.getElementById('fileInput').click()">
+            📁 Đổi Ảnh Gốc
+          </button>
+          <span style="font-size: 11.5px; color: var(--text-muted);" id="dimLabel">Chưa có ảnh</span>
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 12px; color: var(--text-muted);">Kéo chuột di chuyển • Scroll Zoom • ← → ↑ ↓ dịch 1px • Shift+↑↓←→ 10px</span>
+        </div>
+      </div>
+
+      <div class="viewport" id="viewport">
+        <!-- Upload Overlay -->
+        <div class="upload-overlay" id="uploadOverlay" onclick="document.getElementById('fileInput').click()">
+          <div class="upload-icon">🎨</div>
+          <div class="upload-title">Kéo & Thả ảnh dải AI vào đây</div>
+          <div class="upload-desc">Hoặc dán ảnh từ Clipboard (Ctrl + V)<br>Hỗ trợ PNG, JPG, WebP chất lượng cao</div>
+          <button class="btn btn-primary" style="margin-top: 6px;">Chọn Tệp Ảnh Từ Máy</button>
+        </div>
+
+        <!-- Source Image Canvas (panned & zoomed) -->
+        <canvas id="imgCanvas"></canvas>
+
+        <!-- The fixed capture frame (stays center) -->
+        <div class="capture-frame" id="captureFrame">
+          <canvas id="ghostCanvas"></canvas>
+          <div class="capture-frame-crosshair-h"></div>
+          <div class="capture-frame-crosshair-v"></div>
+          <div class="capture-frame-label" id="captureFrameLabel">160 × 160 px</div>
+
+          <!-- Ground guide line -->
+          <div class="ground-guide" id="groundGuide">
+            <div class="ground-guide-label">Mặt đất 90%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Captured Frames Gallery -->
+    <div class="right-panel">
+      <div class="gallery-header">
+        <span>🖼️ CÁC KHUNG ĐÃ CHỤP</span>
+        <span class="badge badge-primary" id="capturedCountBadge">0 / 6</span>
+      </div>
+
+      <div class="gallery-scroll" id="galleryScroll">
+        <!-- Slots rendered dynamically -->
+      </div>
+
+      <!-- Animation Preview & Export Footer (Collapsible) -->
+      <div class="gallery-footer" id="galleryFooter">
+        <div class="footer-toggle-bar" onclick="toggleFooterCollapse()">
+          <span style="display: flex; align-items: center; gap: 6px;">🎬 XEM TRƯỚC & XUẤT GAME</span>
+          <button class="btn" style="padding: 2px 8px; font-size: 10.5px;" id="btnToggleFooter">▲ Ẩn bớt</button>
+        </div>
+
+        <div class="footer-content-wrap" id="footerContentWrap">
+          <div class="anim-preview-box">
+            <canvas id="animCanvas" width="160" height="160"></canvas>
+            <div class="anim-controls">
+              <button class="btn" style="padding: 4px 8px; font-size: 10px;" onclick="stepAnim(-1)">⏮️</button>
+              <button class="btn" style="padding: 4px 8px; font-size: 10px;" id="btnPlay" onclick="togglePlay()">⏸️</button>
+              <button class="btn" style="padding: 4px 8px; font-size: 10px;" onclick="stepAnim(1)">⏭️</button>
+              <button class="btn" style="padding: 4px 8px; font-size: 10px;" id="btnFlip" onclick="toggleFlip()">🔄</button>
+              <div style="flex: 1;"></div>
+              <span style="font-size: 10px; color: var(--text-muted);">FPS:</span>
+              <input type="number" id="animFpsInput" value="8" min="1" max="30" style="width: 42px; padding: 3px 5px; font-size: 11px;" onchange="animFps=parseFloat(this.value)">
+            </div>
+          </div>
+
+          <button class="btn btn-accent btn-lg" style="width: 100%;" onclick="openComparatorModal()">
+            📏 SO SÁNH & CÂN CHỈNH KÍCH THƯỚC
+          </button>
+
+          <button class="btn btn-primary btn-lg" style="width: 100%;" onclick="exportSpritesheet()">
+            💾 TẢI SPRITESHEET DẢI NGANG
+          </button>
+          <button class="btn btn-accent" style="width: 100%;" onclick="exportZip()">
+            📦 Tải Trọn Bộ Từng Frame (ZIP)
+          </button>
+
+          <!-- Deploy to Game -->
+          <div style="border-top: 1px solid var(--border-color); padding-top: 8px; margin-top: 2px;">
+            <div style="font-size: 11px; font-weight: 800; color: #22c55e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">🎮 CHO VÀO GAME</div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div>
+                <label>Tên nhân vật (ví dụ: chick, buffalo, duck):</label>
+                <input type="text" id="deployCharName" value="chick" placeholder="chick" style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid var(--border-color); border-radius: 6px; padding: 5px 8px; color: var(--text-main); font-size: 12.5px; font-weight: 600; outline: none;">
+              </div>
+              <div>
+                <label>Tên hành động (ví dụ: peck, idle, walk):</label>
+                <input type="text" id="deployActionName" value="peck" placeholder="peck" style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid var(--border-color); border-radius: 6px; padding: 5px 8px; color: var(--text-main); font-size: 12.5px; font-weight: 600; outline: none;">
+              </div>
+              <div style="font-size: 10px; color: var(--text-muted); background: rgba(34,197,94,0.08); border-left: 3px solid #22c55e; padding: 5px 8px; border-radius: 0 6px 6px 0; line-height: 1.5;">
+                📁 File sẽ lưu vào:<br>
+                <strong style="color: #4ade80;" id="deployPathPreview">public/assets/characters/chick/chick_peck.png</strong>
+              </div>
+              <button class="btn btn-success btn-lg" style="width: 100%;" onclick="deployToGame()">
+                🚀 Xuất & Cho Vào Game
+              </button>
+            </div>
+          </div>
+
+          <button class="btn btn-danger" style="width: 100%;" onclick="clearAllSlots()">
+            🗑️ Xóa Tất Cả & Bắt Đầu Lại
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ERASER EDITOR MODAL -->
+  <div class="eraser-overlay" id="eraserOverlay">
+    <div class="eraser-header">
+      <div class="eraser-title">
+        <span>✏️ Xóa vùng thừa — Frame</span>
+        <span id="eraserFrameNum">1</span>
+      </div>
+
+      <div class="eraser-tools">
+        <button class="tool-btn active" id="toolEraser" onclick="setEraserTool('eraser')">
+          🧹 Cục Tẩy
+        </button>
+        <button class="tool-btn" id="toolRestore" onclick="setEraserTool('restore')">
+          🖌️ Phục Hồi
+        </button>
+
+        <span style="width: 1px; height: 24px; background: var(--border-color);"></span>
+
+        <label>Kích cỡ nét:</label>
+        <input type="range" id="eraserSize" min="4" max="80" value="20" style="width: 100px;" oninput="eraserBrushSize=parseInt(this.value); document.getElementById('eraserSizeLabel').textContent=this.value+'px'">
+        <span class="range-val" id="eraserSizeLabel">20px</span>
+
+        <span style="width: 1px; height: 24px; background: var(--border-color);"></span>
+
+        <label>Zoom:</label>
+        <button class="tool-btn" style="padding: 4px 8px;" onclick="setEraserZoom(eraserZoom * 0.8)">−</button>
+        <span class="range-val" id="eraserZoomLabel">3x</span>
+        <button class="tool-btn" style="padding: 4px 8px;" onclick="setEraserZoom(eraserZoom * 1.25)">+</button>
+      </div>
+    </div>
+
+    <div class="eraser-canvas-wrap" id="eraserCanvasWrap">
+      <canvas id="eraserCanvas"></canvas>
+    </div>
+    <div class="eraser-cursor" id="eraserCursor"></div>
+
+    <div class="eraser-footer">
+      <button class="btn btn-success btn-lg" onclick="saveEraserAndClose()">✅ Lưu & Đóng</button>
+      <button class="btn btn-danger" onclick="cancelEraser()">❌ Hủy Bỏ (Không Lưu)</button>
+      <span style="width: 1px; height: 24px; background: var(--border-color);"></span>
+      <button class="btn" onclick="undoEraser()" title="Hoàn tác nét xóa gần nhất">↩️ Undo</button>
+      <button class="btn btn-danger" onclick="eraseAllTransparent()">🗑️ Xóa Trắng Toàn Bộ</button>
+    </div>
+  </div>
+
+  <!-- COMPARATOR & BATCH RESCALE MODAL -->
+  <div class="comparator-overlay" id="comparatorOverlay">
+    <div class="comparator-header">
+      <div class="comparator-title">
+        <span>📏 SO SÁNH KÍCH THƯỚC CÁC HÀNH ĐỘNG & CO GIÃN TỔNG THỂ</span>
+      </div>
+      <button class="btn" onclick="closeComparatorModal()">✕ Đóng</button>
+    </div>
+
+    <div class="comparator-body">
+      <!-- Stage with side-by-side view on shared ground -->
+      <div class="comparator-stage">
+        <div class="comparator-canvas-box">
+          
+          <!-- Actor 1: Reference Action -->
+          <div class="comp-actor-wrap">
+            <div class="comp-actor-label" id="compRefLabel">1. Ảnh Mẫu (Tham Chiếu)</div>
+            <div class="comp-canvas-card">
+              <canvas id="compRefCanvas" width="160" height="160"></canvas>
+              <div class="comp-ground-guide" id="compRefGround"></div>
+            </div>
+            <span style="font-size: 11px; color: var(--text-muted);" id="compRefInfo">Chưa có ảnh mẫu</span>
+          </div>
+
+          <!-- Actor 2: Current Captured Animation -->
+          <div class="comp-actor-wrap">
+            <div class="comp-actor-label primary">2. Hành Động Đang Chụp (Sau khi co giãn)</div>
+            <div class="comp-canvas-card" style="border-color: rgba(245,158,11,0.5);">
+              <canvas id="compCurCanvas" width="160" height="160"></canvas>
+              <div class="comp-ground-guide" id="compCurGround"></div>
+            </div>
+            <span style="font-size: 11px; color: #fde047;" id="compCurInfo">0 frames</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Controls Panel -->
+      <div class="comparator-panel">
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Kéo Co Giãn Toàn Bộ Frames</span>
+            <span class="range-val" id="batchScaleLabel">100%</span>
+          </div>
+          <div>
+            <label>Phóng to / thu nhỏ cả chuỗi frame quanh mặt đất:</label>
+            <div class="range-wrap">
+              <input type="range" id="batchScale" min="50" max="180" value="100" oninput="updateCompPreview()">
+            </div>
+          </div>
+          <div class="form-row">
+            <button class="btn" onclick="adjustBatchScale(-5)">−5% Nhỏ hơn</button>
+            <button class="btn" onclick="adjustBatchScale(5)">+5% Lớn hơn</button>
+          </div>
+        </div>
+
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Dịch Vị Trí Lên / Xuống (Y)</span>
+            <span class="range-val" id="batchShiftYLabel">0px</span>
+          </div>
+          <div>
+            <label>Căn chỉnh chân tiếp xúc mặt đất:</label>
+            <div class="range-wrap">
+              <input type="range" id="batchShiftY" min="-40" max="40" value="0" oninput="updateCompPreview()">
+            </div>
+          </div>
+        </div>
+
+        <div class="ctrl-group">
+          <div class="ctrl-label">
+            <span>Dịch Trái / Phải (X)</span>
+            <span class="range-val" id="batchShiftXLabel">0px</span>
+          </div>
+          <div>
+            <label>Căn giữa khung:</label>
+            <div class="range-wrap">
+              <input type="range" id="batchShiftX" min="-40" max="40" value="0" oninput="updateCompPreview()">
+            </div>
+          </div>
+        </div>
+
+        <div class="hint-box">
+          💡 <strong>Cách làm kích thước bằng nhau:</strong><br>
+          1. Nhìn 2 con đứng cạnh nhau trên vạch xanh lá.<br>
+          2. Kéo thanh <strong>Co Giãn</strong> cho chiều cao đầu/lưng bằng nhau.<br>
+          3. Kéo <strong>Dịch Y</strong> cho chân cùng chạm vạch xanh.<br>
+          4. Bấm <strong>✅ Áp Dụng Lên Tất Cả Frame</strong>!
+        </div>
+      </div>
+    </div>
+
+    <div class="comparator-footer">
+      <button class="btn btn-danger" onclick="closeComparatorModal()">Hủy Bỏ</button>
+      <button class="btn btn-success btn-lg" onclick="applyBatchTransformation()">
+        ✅ Áp Dụng Lên Tất Cả Frame & Lưu Lại
+      </button>
+    </div>
+  </div>
+
+  <div id="toast">Thông báo</div>
+
+  <script>
+    // ==================== STATE ====================
+    let sourceImg = null;
+    let imgX = 0, imgY = 0;    // pan offset (image top-left relative to viewport)
+    let imgScale = 1.0;        // zoom scale
+    let isPanning = false;
+    let panStartX = 0, panStartY = 0;
+    let panStartImgX = 0, panStartImgY = 0;
+
+    // Capture frame settings
+    let frameW = 160, frameH = 160;
+    let groundYPercent = 90;
+
+    // Captured frames
+    const MAX_SLOTS = 12;
+    let capturedFrames = []; // Array of { canvas, timestamp }
+    let activeSlot = -1;     // Which slot is highlighted (for re-capture)
+
+    // Animation
+    let isPlaying = true;
+    let isFlipped = false;
+    let animTimer = 0;
+    let animFps = 8;
+    let lastAnimTime = 0;
+
+    const imgCanvas = document.getElementById('imgCanvas');
+    const imgCtx = imgCanvas.getContext('2d');
+    const animCanvas = document.getElementById('animCanvas');
+    const animCtx = animCanvas.getContext('2d');
+    const viewport = document.getElementById('viewport');
+    const captureFrameEl = document.getElementById('captureFrame');
+
+    // ==================== TOAST ====================
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2600);
+    }
+
+    // ==================== IMAGE LOADING ====================
+    function loadImage(src, name) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        sourceImg = img;
+        document.getElementById('uploadOverlay').style.display = 'none';
+        document.getElementById('dimLabel').textContent = `${name} — ${img.naturalWidth} × ${img.naturalHeight}px`;
+        fitImageInView();
+        showToast(`✨ Ảnh đã sẵn sàng! Zoom & kéo để đặt nhân vật vào khung vàng rồi bấm 📷 CHỤP.`);
+      };
+      img.src = src;
+    }
+
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = (ev) => loadImage(ev.target.result, f.name);
+      r.readAsDataURL(f);
+    });
+
+    // Drag & Drop
+    ['dragenter', 'dragover'].forEach(ev => viewport.addEventListener(ev, (e) => { e.preventDefault(); document.getElementById('uploadOverlay').classList.add('dragover'); }));
+    ['dragleave', 'drop'].forEach(ev => viewport.addEventListener(ev, (e) => { e.preventDefault(); document.getElementById('uploadOverlay').classList.remove('dragover'); }));
+    viewport.addEventListener('drop', (e) => {
+      const f = e.dataTransfer.files[0];
+      if (f && f.type.startsWith('image/')) {
+        const r = new FileReader();
+        r.onload = (ev) => loadImage(ev.target.result, f.name);
+        r.readAsDataURL(f);
+      }
+    });
+
+    // Paste
+    window.addEventListener('paste', (e) => {
+      for (let item of e.clipboardData.items) {
+        if (item.type.startsWith('image/')) {
+          const f = item.getAsFile();
+          const r = new FileReader();
+          r.onload = (ev) => loadImage(ev.target.result, 'Clipboard');
+          r.readAsDataURL(f);
+          break;
+        }
+      }
+    });
+
+    // ==================== PAN & ZOOM ====================
+    viewport.addEventListener('mousedown', (e) => {
+      if (!sourceImg || e.target.closest('.upload-overlay')) return;
+      isPanning = true;
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+      panStartImgX = imgX;
+      panStartImgY = imgY;
+      viewport.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isPanning) return;
+      imgX = panStartImgX + (e.clientX - panStartX);
+      imgY = panStartImgY + (e.clientY - panStartY);
+      renderImage();
+    });
+
+    window.addEventListener('mouseup', () => {
+      isPanning = false;
+      viewport.style.cursor = 'grab';
+    });
+
+    // Scroll to zoom (centered on capture frame center)
+    viewport.addEventListener('wheel', (e) => {
+      if (!sourceImg) return;
+      e.preventDefault();
+
+      const rect = viewport.getBoundingClientRect();
+      // Center of capture frame in viewport
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+
+      const oldScale = imgScale;
+      const factor = e.deltaY < 0 ? 1.12 : 0.89;
+      imgScale = Math.max(0.05, Math.min(8.0, imgScale * factor));
+
+      // Adjust pan to keep the center of the frame on the same image pixel
+      const ratio = imgScale / oldScale;
+      imgX = cx - (cx - imgX) * ratio;
+      imgY = cy - (cy - imgY) * ratio;
+
+      document.getElementById('zoomSlider').value = Math.round(imgScale * 100);
+      document.getElementById('zoomLabel').textContent = `${Math.round(imgScale * 100)}%`;
+      renderImage();
+    }, { passive: false });
+
+    function setZoomFromSlider(val) {
+      const rect = viewport.getBoundingClientRect();
+      const cx = rect.width / 2;
+      const cy = rect.height / 2;
+
+      const oldScale = imgScale;
+      imgScale = parseFloat(val) / 100;
+
+      const ratio = imgScale / oldScale;
+      imgX = cx - (cx - imgX) * ratio;
+      imgY = cy - (cy - imgY) * ratio;
+
+      document.getElementById('zoomLabel').textContent = `${Math.round(imgScale * 100)}%`;
+      renderImage();
+    }
+
+    function zoomBy(factor) {
+      const newVal = Math.max(10, Math.min(400, Math.round(imgScale * 100 * factor)));
+      document.getElementById('zoomSlider').value = newVal;
+      setZoomFromSlider(newVal);
+    }
+
+    function fitImageInView() {
+      if (!sourceImg) return;
+      const rect = viewport.getBoundingClientRect();
+      const scaleX = rect.width / sourceImg.naturalWidth;
+      const scaleY = rect.height / sourceImg.naturalHeight;
+      imgScale = Math.min(scaleX, scaleY) * 0.9;
+
+      // Center image
+      imgX = (rect.width - sourceImg.naturalWidth * imgScale) / 2;
+      imgY = (rect.height - sourceImg.naturalHeight * imgScale) / 2;
+
+      document.getElementById('zoomSlider').value = Math.round(imgScale * 100);
+      document.getElementById('zoomLabel').textContent = `${Math.round(imgScale * 100)}%`;
+      renderImage();
+    }
+
+    function renderImage() {
+      if (!sourceImg) return;
+      imgCanvas.width = sourceImg.naturalWidth;
+      imgCanvas.height = sourceImg.naturalHeight;
+      imgCtx.clearRect(0, 0, imgCanvas.width, imgCanvas.height);
+      imgCtx.drawImage(sourceImg, 0, 0);
+
+      imgCanvas.style.transform = `translate(${imgX}px, ${imgY}px) scale(${imgScale})`;
+    }
+
+    // ==================== CAPTURE FRAME POSITIONING ====================
+    function updateCaptureFrame() {
+      frameW = parseInt(document.getElementById('frameW').value, 10) || 160;
+      frameH = parseInt(document.getElementById('frameH').value, 10) || 160;
+
+      const rect = viewport.getBoundingClientRect();
+      const left = (rect.width - frameW) / 2;
+      const top = (rect.height - frameH) / 2;
+
+      captureFrameEl.style.width = frameW + 'px';
+      captureFrameEl.style.height = frameH + 'px';
+      captureFrameEl.style.left = left + 'px';
+      captureFrameEl.style.top = top + 'px';
+
+      document.getElementById('captureFrameLabel').textContent = `${frameW} × ${frameH} px`;
+      updateGroundLine();
+    }
+
+    function applyPreset(val) {
+      if (val === 'custom') return;
+      const [w, h] = val.split('x').map(Number);
+      document.getElementById('frameW').value = w;
+      document.getElementById('frameH').value = h;
+      updateCaptureFrame();
+    }
+
+    function updateGroundLine() {
+      groundYPercent = parseInt(document.getElementById('groundY').value, 10) || 90;
+      document.getElementById('groundYLabel').textContent = `${groundYPercent}%`;
+
+      const show = document.getElementById('chkShowGround').checked;
+      const guide = document.getElementById('groundGuide');
+      guide.style.display = show ? 'block' : 'none';
+      guide.style.top = `${groundYPercent}%`;
+      guide.querySelector('.ground-guide-label').textContent = `Mặt đất ${groundYPercent}%`;
+      updateGhostOverlay();
+    }
+
+    // ==================== CAPTURE A FRAME ====================
+    function captureFrame() {
+      if (!sourceImg) {
+        showToast('⚠️ Vui lòng tải ảnh lên trước!');
+        return;
+      }
+
+      const rect = viewport.getBoundingClientRect();
+      // Capture frame is centered in viewport
+      const frameCenterX = rect.width / 2;
+      const frameCenterY = rect.height / 2;
+      const frameLeft = frameCenterX - frameW / 2;
+      const frameTop = frameCenterY - frameH / 2;
+
+      // Convert capture frame corners to image pixel coordinates
+      const srcX = (frameLeft - imgX) / imgScale;
+      const srcY = (frameTop - imgY) / imgScale;
+      const srcW = frameW / imgScale;
+      const srcH = frameH / imgScale;
+
+      // Create output canvas
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = frameW;
+      outCanvas.height = frameH;
+      const ctx = outCanvas.getContext('2d', { willReadFrequently: true });
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(sourceImg, srcX, srcY, srcW, srcH, 0, 0, frameW, frameH);
+
+      // Remove white background if checked
+      if (document.getElementById('chkRemoveBg').checked) {
+        const threshold = parseInt(document.getElementById('bgThreshold').value, 10);
+        const imgData = ctx.getImageData(0, 0, frameW, frameH);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const diff = 255 - Math.min(d[i], d[i + 1], d[i + 2]);
+          if (diff <= threshold) {
+            d[i + 3] = 0;
+          } else if (diff < threshold + 25) {
+            d[i + 3] = Math.round(((diff - threshold) / 25) * 255);
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+      }
+
+      // Add to slots
+      if (activeSlot >= 0 && activeSlot < capturedFrames.length) {
+        // Re-capture into existing slot
+        capturedFrames[activeSlot] = { canvas: outCanvas, timestamp: Date.now() };
+        showToast(`📷 Đã chụp lại Frame ${activeSlot + 1} thành công!`);
+      } else {
+        capturedFrames.push({ canvas: outCanvas, timestamp: Date.now() });
+        showToast(`📷 Đã chụp Frame ${capturedFrames.length} thành công!`);
+      }
+
+      activeSlot = -1;
+      renderGallery();
+    }
+
+    // ==================== GALLERY RENDERING ====================
+    function renderGallery() {
+      const container = document.getElementById('galleryScroll');
+      container.innerHTML = '';
+
+      document.getElementById('capturedCountBadge').textContent = `${capturedFrames.length} khung`;
+
+      // Render captured frames
+      capturedFrames.forEach((frame, idx) => {
+        const slot = createSlotElement(idx, frame);
+        container.appendChild(slot);
+      });
+
+      // Render one empty slot (next)
+      const emptySlot = document.createElement('div');
+      emptySlot.className = 'captured-slot empty';
+      emptySlot.innerHTML = `
+        <div class="slot-number" style="background: rgba(56,189,248,0.15); color: #7dd3fc;">${capturedFrames.length + 1}</div>
+        <div class="slot-preview" style="border-style: dashed;">
+          <span style="font-size: 20px; opacity: 0.4;">📷</span>
+        </div>
+        <div class="slot-info">
+          <strong style="color: var(--text-muted);">Chưa chụp</strong><br>
+          Zoom & kéo ảnh rồi bấm CHỤP
+        </div>
+      `;
+      emptySlot.onclick = () => { activeSlot = -1; renderGallery(); };
+      container.appendChild(emptySlot);
+
+      // Update animation canvas size
+      if (capturedFrames.length > 0) {
+        animCanvas.width = capturedFrames[0].canvas.width;
+        animCanvas.height = capturedFrames[0].canvas.height;
+      }
+    }
+
+    let dragSrcIndex = -1;
+
+    function createSlotElement(idx, frame) {
+      const slot = document.createElement('div');
+      slot.className = 'captured-slot' + (idx === activeSlot ? ' active' : '');
+      slot.draggable = true;
+      slot.dataset.idx = idx;
+
+      // --- Drag & Drop ---
+      slot.addEventListener('dragstart', (e) => {
+        dragSrcIndex = idx;
+        slot.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', idx);
+      });
+
+      slot.addEventListener('dragend', () => {
+        slot.classList.remove('dragging');
+        document.querySelectorAll('.captured-slot').forEach(s => s.classList.remove('drag-over'));
+        dragSrcIndex = -1;
+      });
+
+      slot.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (parseInt(slot.dataset.idx) !== dragSrcIndex) {
+          slot.classList.add('drag-over');
+        }
+      });
+
+      slot.addEventListener('dragleave', () => {
+        slot.classList.remove('drag-over');
+      });
+
+      slot.addEventListener('drop', (e) => {
+        e.preventDefault();
+        slot.classList.remove('drag-over');
+        const fromIdx = dragSrcIndex;
+        const toIdx = idx;
+        if (fromIdx === -1 || fromIdx === toIdx) return;
+
+        // Reorder: remove from old position, insert at new
+        const [moved] = capturedFrames.splice(fromIdx, 1);
+        capturedFrames.splice(toIdx, 0, moved);
+        activeSlot = -1;
+        renderGallery();
+        showToast(`↕️ Đã chuyển Frame ${fromIdx + 1} → vị trí ${toIdx + 1}`);
+      });
+
+      const num = document.createElement('div');
+      num.className = 'slot-number';
+      num.textContent = idx + 1;
+
+      const preview = document.createElement('div');
+      preview.className = 'slot-preview';
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = frame.canvas.width;
+      thumbCanvas.height = frame.canvas.height;
+      thumbCanvas.getContext('2d').drawImage(frame.canvas, 0, 0);
+      preview.appendChild(thumbCanvas);
+
+      const info = document.createElement('div');
+      info.className = 'slot-info';
+      info.innerHTML = `<strong>Frame ${idx + 1}</strong><br>${frame.canvas.width}×${frame.canvas.height}px`;
+
+      const actions = document.createElement('div');
+      actions.className = 'slot-actions';
+
+      const btnRecapture = document.createElement('button');
+      btnRecapture.className = 'slot-btn';
+      btnRecapture.textContent = '📷 Chụp lại';
+      btnRecapture.style.color = '#fde047';
+      btnRecapture.style.borderColor = 'rgba(245,158,11,0.4)';
+      btnRecapture.onclick = (e) => {
+        e.stopPropagation();
+        activeSlot = idx;
+        renderGallery();
+        showToast(`🎯 Đang nhắm chụp lại Frame ${idx + 1}. Kéo ảnh vào vị trí rồi bấm CHỤP!`);
+      };
+
+      const btnDelete = document.createElement('button');
+      btnDelete.className = 'slot-btn';
+      btnDelete.textContent = '🗑️ Xóa';
+      btnDelete.onclick = (e) => {
+        e.stopPropagation();
+        capturedFrames.splice(idx, 1);
+        if (activeSlot === idx) activeSlot = -1;
+        renderGallery();
+      };
+
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'slot-btn';
+      btnEdit.textContent = '✏️ Sửa/Xóa';
+      btnEdit.style.color = '#7dd3fc';
+      btnEdit.style.borderColor = 'rgba(56,189,248,0.4)';
+      btnEdit.onclick = (e) => {
+        e.stopPropagation();
+        openEraserEditor(idx);
+      };
+
+      const btnDuplicate = document.createElement('button');
+      btnDuplicate.className = 'slot-btn';
+      btnDuplicate.textContent = '📋 Nhân bản';
+      btnDuplicate.style.color = '#a78bfa';
+      btnDuplicate.style.borderColor = 'rgba(167,139,250,0.4)';
+      btnDuplicate.onclick = (e) => {
+        e.stopPropagation();
+        const src = capturedFrames[idx];
+        const cloneCanvas = document.createElement('canvas');
+        cloneCanvas.width = src.canvas.width;
+        cloneCanvas.height = src.canvas.height;
+        cloneCanvas.getContext('2d').drawImage(src.canvas, 0, 0);
+        capturedFrames.splice(idx + 1, 0, { canvas: cloneCanvas, timestamp: Date.now() });
+        renderGallery();
+        showToast(`📋 Đã nhân bản Frame ${idx + 1} → Frame ${idx + 2}!`);
+      };
+
+      actions.appendChild(btnEdit);
+      actions.appendChild(btnDuplicate);
+      actions.appendChild(btnRecapture);
+      actions.appendChild(btnDelete);
+
+      slot.appendChild(num);
+      slot.appendChild(preview);
+      slot.appendChild(info);
+      slot.appendChild(actions);
+
+      slot.onclick = () => {
+        activeSlot = idx;
+        renderGallery();
+      };
+
+      return slot;
+    }
+
+    function clearAllSlots() {
+      capturedFrames = [];
+      activeSlot = -1;
+      renderGallery();
+      showToast('🗑️ Đã xóa tất cả các khung đã chụp!');
+    }
+
+    // ==================== ANIMATION PREVIEW ====================
+    function animLoop(ts) {
+      if (!lastAnimTime) lastAnimTime = ts;
+      const dt = (ts - lastAnimTime) / 1000;
+      lastAnimTime = ts;
+
+      if (isPlaying && capturedFrames.length > 0) {
+        animTimer += dt;
+      }
+
+      animCtx.clearRect(0, 0, animCanvas.width, animCanvas.height);
+
+      if (capturedFrames.length > 0) {
+        const idx = Math.floor(animTimer * animFps) % capturedFrames.length;
+        const fr = capturedFrames[idx].canvas;
+
+        if (animCanvas.width !== fr.width || animCanvas.height !== fr.height) {
+          animCanvas.width = fr.width;
+          animCanvas.height = fr.height;
+        }
+
+        animCtx.save();
+        if (isFlipped) {
+          animCtx.translate(animCanvas.width, 0);
+          animCtx.scale(-1, 1);
+        }
+        animCtx.drawImage(fr, 0, 0);
+        animCtx.restore();
+      } else {
+        animCtx.fillStyle = '#475569';
+        animCtx.font = '11px Outfit';
+        animCtx.textAlign = 'center';
+        animCtx.fillText('Chưa có frame', animCanvas.width / 2, animCanvas.height / 2);
+      }
+
+      requestAnimationFrame(animLoop);
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      document.getElementById('btnPlay').textContent = isPlaying ? '⏸️' : '▶️';
+    }
+
+    function toggleFlip() {
+      isFlipped = !isFlipped;
+    }
+
+    function stepAnim(delta) {
+      isPlaying = false;
+      document.getElementById('btnPlay').textContent = '▶️';
+      if (capturedFrames.length === 0) return;
+      let cur = Math.floor(animTimer * animFps) % capturedFrames.length;
+      cur = (cur + delta + capturedFrames.length) % capturedFrames.length;
+      animTimer = cur / animFps;
+    }
+
+    // ==================== EXPORT ====================
+    function exportSpritesheet() {
+      if (capturedFrames.length === 0) {
+        showToast('⚠️ Chưa có khung nào để xuất!');
+        return;
+      }
+      const fw = capturedFrames[0].canvas.width;
+      const fh = capturedFrames[0].canvas.height;
+      const n = capturedFrames.length;
+
+      const sheet = document.createElement('canvas');
+      sheet.width = fw * n;
+      sheet.height = fh;
+      const ctx = sheet.getContext('2d');
+      capturedFrames.forEach((fr, i) => ctx.drawImage(fr.canvas, i * fw, 0));
+
+      sheet.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `spritesheet_${n}frames_${fw}x${fh}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(`🎉 Đã xuất Spritesheet ${sheet.width}x${sheet.height}px (${n} frames)!`);
+      }, 'image/png');
+    }
+
+    function exportZip() {
+      if (capturedFrames.length === 0) {
+        showToast('⚠️ Chưa có khung nào để xuất!');
+        return;
+      }
+      const zip = new JSZip();
+      const folder = zip.folder('frames');
+      let done = 0;
+      capturedFrames.forEach((fr, i) => {
+        fr.canvas.toBlob((blob) => {
+          folder.file(`frame_${String(i).padStart(2, '0')}.png`, blob);
+          done++;
+          if (done === capturedFrames.length) {
+            zip.generateAsync({ type: 'blob' }).then((content) => {
+              const url = URL.createObjectURL(content);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `sprite_frames_${capturedFrames.length}pcs.zip`;
+              a.click();
+              URL.revokeObjectURL(url);
+              showToast(`📦 Đã tải ZIP ${done} frames!`);
+            });
+          }
+        }, 'image/png');
+      });
+    }
+
+    // ==================== KEYBOARD SHORTCUTS ====================
+    window.addEventListener('keydown', (e) => {
+      if (['input', 'textarea', 'select'].includes(document.activeElement.tagName.toLowerCase())) return;
+
+      // Space / Enter = capture
+      if (e.code === 'Space' || e.code === 'Enter') {
+        e.preventDefault();
+        captureFrame();
+        return;
+      }
+
+      // Arrow keys = move image precisely (skip if eraser modal is open)
+      if (document.getElementById('eraserOverlay').classList.contains('open')) return;
+
+      const step = e.shiftKey ? 10 : 1; // Shift = 10px jumps
+      let moved = false;
+
+      if (e.code === 'ArrowLeft')  { imgX -= step; moved = true; }
+      if (e.code === 'ArrowRight') { imgX += step; moved = true; }
+      if (e.code === 'ArrowUp')    { imgY -= step; moved = true; }
+      if (e.code === 'ArrowDown')  { imgY += step; moved = true; }
+
+      if (moved) {
+        e.preventDefault();
+        renderImage();
+      }
+
+      // Ctrl+S = save project
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyS') {
+        e.preventDefault();
+        saveProject();
+      }
+
+      // Ctrl+O = open new image
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyO') {
+        e.preventDefault();
+        document.getElementById('fileInput').click();
+      }
+    });
+
+    // ==================== UI LISTENERS ====================
+    document.getElementById('bgThreshold').addEventListener('input', (e) => {
+      document.getElementById('bgThreshLabel').textContent = e.target.value;
+    });
+
+    // Update deploy path preview when name inputs change
+    function updateDeployPathPreview() {
+      const charName = document.getElementById('deployCharName').value.trim().toLowerCase().replace(/\s+/g, '_') || 'character';
+      const actionName = document.getElementById('deployActionName').value.trim().toLowerCase().replace(/\s+/g, '_') || 'action';
+      document.getElementById('deployPathPreview').textContent = `public/assets/characters/${charName}/${charName}_${actionName}.png`;
+    }
+    document.getElementById('deployCharName').addEventListener('input', updateDeployPathPreview);
+    document.getElementById('deployActionName').addEventListener('input', updateDeployPathPreview);
+
+    // ==================== INIT ====================
+    window.addEventListener('load', () => {
+      updateCaptureFrame();
+      renderGallery();
+      requestAnimationFrame(animLoop);
+      // Auto-load saved project
+      if (localStorage.getItem('scs_sourceImg')) {
+        loadProject(true);
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      updateCaptureFrame();
+    });
+
+    // ==================== DEPLOY TO GAME ====================
+    async function deployToGame() {
+      if (capturedFrames.length === 0) {
+        showToast('⚠️ Chưa có khung nào để xuất!');
+        return;
+      }
+
+      const charName = document.getElementById('deployCharName').value.trim().toLowerCase().replace(/\s+/g, '_');
+      const actionName = document.getElementById('deployActionName').value.trim().toLowerCase().replace(/\s+/g, '_');
+
+      if (!charName || !actionName) {
+        showToast('⚠️ Vui lòng nhập tên nhân vật và hành động!');
+        return;
+      }
+
+      const fileName = `${charName}_${actionName}.png`;
+
+      // Build spritesheet
+      const fw = capturedFrames[0].canvas.width;
+      const fh = capturedFrames[0].canvas.height;
+      const n = capturedFrames.length;
+      const sheet = document.createElement('canvas');
+      sheet.width = fw * n;
+      sheet.height = fh;
+      const ctx = sheet.getContext('2d');
+      capturedFrames.forEach((fr, i) => ctx.drawImage(fr.canvas, i * fw, 0));
+
+      // Try File System Access API (save to exact folder)
+      if (window.showSaveFilePicker) {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            startIn: 'desktop',
+            types: [{
+              description: 'PNG Spritesheet',
+              accept: { 'image/png': ['.png'] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          const blob = await new Promise(r => sheet.toBlob(r, 'image/png'));
+          await writable.write(blob);
+          await writable.close();
+          showToast(`🚀 Đã lưu ${fileName} (${n} frames, ${sheet.width}×${sheet.height}px)! Chuyển vào thư mục characters/${charName}/ để dùng trong game.`);
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            showToast('❌ Lỗi: ' + err.message);
+          }
+        }
+      } else {
+        // Fallback: regular download
+        sheet.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast(`🚀 Đã tải ${fileName}! Hãy chuyển vào: public/assets/characters/${charName}/`);
+        }, 'image/png');
+      }
+    }
+
+    // ==================== SAVE / LOAD PROJECT ====================
+    function saveProject() {
+      try {
+        // Save source image
+        if (sourceImg) {
+          const tmpC = document.createElement('canvas');
+          tmpC.width = sourceImg.naturalWidth;
+          tmpC.height = sourceImg.naturalHeight;
+          tmpC.getContext('2d').drawImage(sourceImg, 0, 0);
+          localStorage.setItem('scs_sourceImg', tmpC.toDataURL('image/png'));
+          localStorage.setItem('scs_sourceImgName', document.getElementById('dimLabel').textContent);
+        }
+
+        // Save captured frames
+        const framesData = capturedFrames.map(f => ({
+          dataUrl: f.canvas.toDataURL('image/png'),
+          w: f.canvas.width,
+          h: f.canvas.height
+        }));
+        localStorage.setItem('scs_frames', JSON.stringify(framesData));
+
+        // Save settings
+        localStorage.setItem('scs_settings', JSON.stringify({
+          frameW, frameH, groundYPercent,
+          imgX, imgY, imgScale
+        }));
+
+        showToast(`💾 Đã lưu! Ảnh gốc + ${capturedFrames.length} frames đã chụp.`);
+      } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+          showToast('⚠️ Bộ nhớ trình duyệt đầy! Hãy xóa bớt bản lưu cũ.');
+        } else {
+          showToast('❌ Lỗi khi lưu: ' + e.message);
+        }
+      }
+    }
+
+    function loadProject(silent) {
+      try {
+        const srcData = localStorage.getItem('scs_sourceImg');
+        const framesJson = localStorage.getItem('scs_frames');
+        const settingsJson = localStorage.getItem('scs_settings');
+
+        if (!srcData && !framesJson) {
+          if (!silent) showToast('📂 Không có bản lưu nào!');
+          return;
+        }
+
+        // Restore settings first
+        if (settingsJson) {
+          const s = JSON.parse(settingsJson);
+          frameW = s.frameW || 160;
+          frameH = s.frameH || 160;
+          groundYPercent = s.groundYPercent || 90;
+          imgX = s.imgX || 0;
+          imgY = s.imgY || 0;
+          imgScale = s.imgScale || 1;
+          document.getElementById('frameW').value = frameW;
+          document.getElementById('frameH').value = frameH;
+          document.getElementById('groundY').value = groundYPercent;
+          document.getElementById('zoomSlider').value = Math.round(imgScale * 100);
+          document.getElementById('zoomLabel').textContent = Math.round(imgScale * 100) + '%';
+          updateCaptureFrame();
+        }
+
+        // Restore source image
+        if (srcData) {
+          const name = localStorage.getItem('scs_sourceImgName') || 'Bản lưu';
+          loadImage(srcData, name);
+          // Override auto-fit: restore exact pan/zoom after image loads
+          if (settingsJson) {
+            const s = JSON.parse(settingsJson);
+            setTimeout(() => {
+              imgX = s.imgX || 0;
+              imgY = s.imgY || 0;
+              imgScale = s.imgScale || 1;
+              document.getElementById('zoomSlider').value = Math.round(imgScale * 100);
+              document.getElementById('zoomLabel').textContent = Math.round(imgScale * 100) + '%';
+              renderImage();
+            }, 100);
+          }
+        }
+
+        // Restore captured frames
+        if (framesJson) {
+          const framesData = JSON.parse(framesJson);
+          let loaded = 0;
+          capturedFrames = [];
+
+          if (framesData.length === 0) {
+            renderGallery();
+          }
+
+          framesData.forEach((fd, i) => {
+            const img = new Image();
+            img.onload = () => {
+              const c = document.createElement('canvas');
+              c.width = fd.w;
+              c.height = fd.h;
+              c.getContext('2d').drawImage(img, 0, 0);
+              capturedFrames[i] = { canvas: c, timestamp: Date.now() };
+              loaded++;
+              if (loaded === framesData.length) {
+                renderGallery();
+              }
+            };
+            img.src = fd.dataUrl;
+          });
+        }
+
+        if (!silent) showToast('📂 Đã tải lại bản lưu thành công!');
+      } catch (e) {
+        showToast('❌ Lỗi khi tải bản lưu: ' + e.message);
+      }
+    }
+
+    // ==================== ERASER EDITOR ====================
+    let eraserEditingIndex = -1;
+    let eraserBrushSize = 20;
+    let eraserTool = 'eraser'; // 'eraser' | 'restore'
+    let eraserZoom = 3;
+    let eraserOriginalData = null; // backup ImageData of original frame
+    let eraserUndoStack = [];      // stack of ImageData snapshots
+    let isEraserDrawing = false;
+
+    const eraserCanvas = document.getElementById('eraserCanvas');
+    const eraserCtx = eraserCanvas.getContext('2d', { willReadFrequently: true });
+    const eraserCursor = document.getElementById('eraserCursor');
+
+    function openEraserEditor(idx) {
+      eraserEditingIndex = idx;
+      const frame = capturedFrames[idx];
+      if (!frame) return;
+
+      document.getElementById('eraserFrameNum').textContent = (idx + 1);
+
+      // Copy frame data to eraser canvas
+      eraserCanvas.width = frame.canvas.width;
+      eraserCanvas.height = frame.canvas.height;
+      eraserCtx.clearRect(0, 0, eraserCanvas.width, eraserCanvas.height);
+      eraserCtx.drawImage(frame.canvas, 0, 0);
+
+      // Backup original data for restore brush
+      eraserOriginalData = eraserCtx.getImageData(0, 0, eraserCanvas.width, eraserCanvas.height);
+      eraserUndoStack = [];
+
+      // Set zoom to fit nicely (3x default)
+      eraserZoom = 3;
+      setEraserZoom(eraserZoom);
+
+      eraserTool = 'eraser';
+      document.getElementById('toolEraser').classList.add('active');
+      document.getElementById('toolRestore').classList.remove('active');
+
+      document.getElementById('eraserOverlay').classList.add('open');
+    }
+
+    function setEraserZoom(z) {
+      eraserZoom = Math.max(1, Math.min(8, z));
+      eraserCanvas.style.width = (eraserCanvas.width * eraserZoom) + 'px';
+      eraserCanvas.style.height = (eraserCanvas.height * eraserZoom) + 'px';
+      document.getElementById('eraserZoomLabel').textContent = eraserZoom.toFixed(1) + 'x';
+    }
+
+    function setEraserTool(tool) {
+      eraserTool = tool;
+      document.getElementById('toolEraser').classList.toggle('active', tool === 'eraser');
+      document.getElementById('toolRestore').classList.toggle('active', tool === 'restore');
+    }
+
+    function saveEraserAndClose() {
+      if (eraserEditingIndex >= 0 && eraserEditingIndex < capturedFrames.length) {
+        // Copy eraser canvas back to captured frame
+        const frame = capturedFrames[eraserEditingIndex];
+        const ctx = frame.canvas.getContext('2d');
+        ctx.clearRect(0, 0, frame.canvas.width, frame.canvas.height);
+        ctx.drawImage(eraserCanvas, 0, 0);
+        renderGallery();
+        showToast(`✅ Đã lưu thay đổi cho Frame ${eraserEditingIndex + 1}!`);
+      }
+      closeEraserOverlay();
+    }
+
+    function cancelEraser() {
+      closeEraserOverlay();
+    }
+
+    function closeEraserOverlay() {
+      document.getElementById('eraserOverlay').classList.remove('open');
+      eraserEditingIndex = -1;
+      eraserUndoStack = [];
+      eraserOriginalData = null;
+      eraserCursor.style.display = 'none';
+    }
+
+    function undoEraser() {
+      if (eraserUndoStack.length === 0) {
+        showToast('↩️ Không còn gì để Undo!');
+        return;
+      }
+      const prev = eraserUndoStack.pop();
+      eraserCtx.putImageData(prev, 0, 0);
+    }
+
+    function eraseAllTransparent() {
+      // Save undo
+      eraserUndoStack.push(eraserCtx.getImageData(0, 0, eraserCanvas.width, eraserCanvas.height));
+      if (eraserUndoStack.length > 30) eraserUndoStack.shift();
+      eraserCtx.clearRect(0, 0, eraserCanvas.width, eraserCanvas.height);
+      showToast('🗑️ Đã xóa trắng toàn bộ frame!');
+    }
+
+    // Eraser canvas mouse events
+    function getEraserCoords(e) {
+      const rect = eraserCanvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / eraserZoom;
+      const y = (e.clientY - rect.top) / eraserZoom;
+      return { x, y };
+    }
+
+    function eraserStroke(x, y) {
+      const r = eraserBrushSize / 2;
+      if (eraserTool === 'eraser') {
+        // Erase: paint transparent circle
+        eraserCtx.save();
+        eraserCtx.globalCompositeOperation = 'destination-out';
+        eraserCtx.beginPath();
+        eraserCtx.arc(x, y, r, 0, Math.PI * 2);
+        eraserCtx.fill();
+        eraserCtx.restore();
+      } else {
+        // Restore: paint original pixels back
+        if (!eraserOriginalData) return;
+        const ix = Math.floor(x - r);
+        const iy = Math.floor(y - r);
+        const d = Math.ceil(r * 2);
+        const cw = eraserCanvas.width;
+        const ch = eraserCanvas.height;
+
+        const curData = eraserCtx.getImageData(0, 0, cw, ch);
+        const srcData = eraserOriginalData.data;
+        const dstData = curData.data;
+
+        for (let py = Math.max(0, iy); py < Math.min(ch, iy + d); py++) {
+          for (let px = Math.max(0, ix); px < Math.min(cw, ix + d); px++) {
+            const dist = Math.hypot(px - x, py - y);
+            if (dist <= r) {
+              const idx = (py * cw + px) * 4;
+              dstData[idx] = srcData[idx];
+              dstData[idx + 1] = srcData[idx + 1];
+              dstData[idx + 2] = srcData[idx + 2];
+              dstData[idx + 3] = srcData[idx + 3];
+            }
+          }
+        }
+        eraserCtx.putImageData(curData, 0, 0);
+      }
+    }
+
+    eraserCanvas.addEventListener('mousedown', (e) => {
+      isEraserDrawing = true;
+      // Save undo snapshot at start of stroke
+      eraserUndoStack.push(eraserCtx.getImageData(0, 0, eraserCanvas.width, eraserCanvas.height));
+      if (eraserUndoStack.length > 30) eraserUndoStack.shift();
+      const { x, y } = getEraserCoords(e);
+      eraserStroke(x, y);
+    });
+
+    eraserCanvas.addEventListener('mousemove', (e) => {
+      // Update cursor position
+      const displaySize = eraserBrushSize * eraserZoom;
+      eraserCursor.style.display = 'block';
+      eraserCursor.style.width = displaySize + 'px';
+      eraserCursor.style.height = displaySize + 'px';
+      eraserCursor.style.left = (e.clientX - displaySize / 2) + 'px';
+      eraserCursor.style.top = (e.clientY - displaySize / 2) + 'px';
+      eraserCursor.style.borderColor = eraserTool === 'eraser' ? '#f59e0b' : '#22c55e';
+
+      if (!isEraserDrawing) return;
+      const { x, y } = getEraserCoords(e);
+      eraserStroke(x, y);
+    });
+
+    window.addEventListener('mouseup', () => {
+      isEraserDrawing = false;
+    });
+
+    eraserCanvas.addEventListener('mouseleave', () => {
+      eraserCursor.style.display = 'none';
+    });
+
+    eraserCanvas.addEventListener('mouseenter', () => {
+      eraserCursor.style.display = 'block';
+    });
+
+    // Scroll to change brush size on eraser canvas
+    eraserCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 3 : -3;
+      eraserBrushSize = Math.max(4, Math.min(80, eraserBrushSize + delta));
+      document.getElementById('eraserSize').value = eraserBrushSize;
+      document.getElementById('eraserSizeLabel').textContent = eraserBrushSize + 'px';
+    }, { passive: false });
+
+    // ==================== GHOST ONION SKIN & REFERENCE ACTION ====================
+    let refImg = null;
+    let refImgName = '';
+    let refFrames = 1;
+    const ghostCanvas = document.getElementById('ghostCanvas');
+    const ghostCtx = ghostCanvas.getContext('2d');
+
+    // Reference file input
+    document.getElementById('refFileInput').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = (ev) => loadRefImageSrc(ev.target.result, f.name);
+      r.readAsDataURL(f);
+    });
+
+    function loadRefPreset(url) {
+      if (!url || url === 'none') return;
+      loadRefImageSrc(url, url.split('/').pop());
+    }
+
+    function loadRefImageSrc(src, name) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        refImg = img;
+        refImgName = name || 'Mẫu';
+        refFrames = Math.max(1, Math.round(img.naturalWidth / img.naturalHeight));
+        document.getElementById('compRefLabel').textContent = `1. Mẫu: ${refImgName}`;
+        document.getElementById('compRefInfo').textContent = `${img.naturalWidth}×${img.naturalHeight}px (${refFrames} frames)`;
+        updateGhostOverlay();
+        showToast(`🎯 Đã nạp ảnh mẫu đối chiếu: ${refImgName}!`);
+      };
+      img.src = src;
+    }
+
+    function updateGhostOverlay() {
+      if (!ghostCanvas) return;
+      ghostCanvas.width = frameW;
+      ghostCanvas.height = frameH;
+      ghostCtx.clearRect(0, 0, frameW, frameH);
+
+      const show = document.getElementById('chkShowGhost') ? document.getElementById('chkShowGhost').checked : false;
+      if (!show || !refImg || !refImg.complete || refImg.naturalWidth === 0) return;
+
+      const opacity = parseInt(document.getElementById('ghostOpacity').value, 10) / 100;
+      const scale = parseInt(document.getElementById('ghostScale').value, 10) / 100;
+      document.getElementById('ghostOpacityLabel').textContent = Math.round(opacity * 100) + '%';
+      document.getElementById('ghostScaleLabel').textContent = Math.round(scale * 100) + '%';
+
+      ghostCtx.save();
+      ghostCtx.globalAlpha = opacity;
+
+      // Extract first frame of reference
+      const singleRefW = refImg.naturalWidth / refFrames;
+      const singleRefH = refImg.naturalHeight;
+
+      // Draw reference centered and aligned to ground
+      const drawW = frameW * scale;
+      const drawH = frameH * scale;
+      const drawX = (frameW - drawW) / 2;
+      const groundPixelY = (groundYPercent / 100) * frameH;
+      const drawY = groundPixelY - drawH * (groundYPercent / 100);
+
+      ghostCtx.drawImage(
+        refImg,
+        0, 0, singleRefW, singleRefH,
+        drawX, drawY, drawW, drawH
+      );
+      ghostCtx.restore();
+    }
+
+    // ==================== COMPARATOR MODAL & BATCH RESCALE ====================
+    let compAnimId = null;
+    let compAnimTimer = 0;
+    let compLastTime = 0;
+
+    const compRefCanvas = document.getElementById('compRefCanvas');
+    const compRefCtx = compRefCanvas.getContext('2d');
+    const compCurCanvas = document.getElementById('compCurCanvas');
+    const compCurCtx = compCurCanvas.getContext('2d');
+
+    function openComparatorModal() {
+      if (capturedFrames.length === 0 && !refImg) {
+        showToast('⚠️ Hãy chụp ít nhất 1 frame hoặc chọn ảnh mẫu đối chiếu!');
+      }
+
+      // Default load Chick Idle if no ref loaded
+      if (!refImg) {
+        loadRefImageSrc('/assets/characters/chick/chick_idle.png', 'chick_idle.png');
+      }
+
+      document.getElementById('comparatorOverlay').classList.add('open');
+
+      // Sync canvas dimensions
+      compRefCanvas.width = frameW;
+      compRefCanvas.height = frameH;
+      compCurCanvas.width = frameW;
+      compCurCanvas.height = frameH;
+
+      // Update ground guides inside comparator
+      document.getElementById('compRefGround').style.top = `${groundYPercent}%`;
+      document.getElementById('compCurGround').style.top = `${groundYPercent}%`;
+
+      document.getElementById('compCurInfo').textContent = `${capturedFrames.length} frames (${frameW}×${frameH}px)`;
+
+      // Reset sliders
+      document.getElementById('batchScale').value = 100;
+      document.getElementById('batchShiftY').value = 0;
+      document.getElementById('batchShiftX').value = 0;
+      updateCompPreview();
+
+      // Start comparator animation loop
+      compLastTime = performance.now();
+      compAnimLoop(compLastTime);
+    }
+
+    function closeComparatorModal() {
+      document.getElementById('comparatorOverlay').classList.remove('open');
+      if (compAnimId) {
+        cancelAnimationFrame(compAnimId);
+        compAnimId = null;
+      }
+    }
+
+    function adjustBatchScale(delta) {
+      const slider = document.getElementById('batchScale');
+      const val = Math.max(50, Math.min(180, parseInt(slider.value, 10) + delta));
+      slider.value = val;
+      updateCompPreview();
+    }
+
+    function updateCompPreview() {
+      const scale = parseInt(document.getElementById('batchScale').value, 10);
+      const shiftY = parseInt(document.getElementById('batchShiftY').value, 10);
+      const shiftX = parseInt(document.getElementById('batchShiftX').value, 10);
+
+      document.getElementById('batchScaleLabel').textContent = `${scale}%`;
+      document.getElementById('batchShiftYLabel').textContent = `${shiftY}px`;
+      document.getElementById('batchShiftXLabel').textContent = `${shiftX}px`;
+    }
+
+    function compAnimLoop(ts) {
+      const dt = (ts - compLastTime) / 1000;
+      compLastTime = ts;
+      compAnimTimer += dt;
+
+      // 1. Draw Reference Actor
+      compRefCtx.clearRect(0, 0, compRefCanvas.width, compRefCanvas.height);
+      if (refImg && refImg.complete && refImg.naturalWidth > 0) {
+        const refIdx = Math.floor(compAnimTimer * 6) % refFrames;
+        const sw = refImg.naturalWidth / refFrames;
+        const sh = refImg.naturalHeight;
+        compRefCtx.drawImage(
+          refImg,
+          refIdx * sw, 0, sw, sh,
+          0, 0, compRefCanvas.width, compRefCanvas.height
+        );
+      } else {
+        compRefCtx.fillStyle = '#64748b';
+        compRefCtx.font = '12px Outfit';
+        compRefCtx.textAlign = 'center';
+        compRefCtx.fillText('Chưa có ảnh mẫu', compRefCanvas.width / 2, compRefCanvas.height / 2);
+      }
+
+      // 2. Draw Current Captured Actor with Live Scale & Shift
+      compCurCtx.clearRect(0, 0, compCurCanvas.width, compCurCanvas.height);
+      if (capturedFrames.length > 0) {
+        const curIdx = Math.floor(compAnimTimer * animFps) % capturedFrames.length;
+        const srcFrame = capturedFrames[curIdx].canvas;
+
+        const scaleVal = parseInt(document.getElementById('batchScale').value, 10) / 100;
+        const shiftY = parseInt(document.getElementById('batchShiftY').value, 10);
+        const shiftX = parseInt(document.getElementById('batchShiftX').value, 10);
+
+        compCurCtx.save();
+        // Pivot around feet (ground anchor)
+        const groundPx = (groundYPercent / 100) * compCurCanvas.height;
+        const midX = compCurCanvas.width / 2;
+
+        compCurCtx.translate(midX + shiftX, groundPx + shiftY);
+        compCurCtx.scale(scaleVal, scaleVal);
+        compCurCtx.drawImage(srcFrame, -midX, -groundPx);
+        compCurCtx.restore();
+      } else {
+        compCurCtx.fillStyle = '#64748b';
+        compCurCtx.font = '12px Outfit';
+        compCurCtx.textAlign = 'center';
+        compCurCtx.fillText('Chưa có frame đã chụp', compCurCanvas.width / 2, compCurCanvas.height / 2);
+      }
+
+      if (document.getElementById('comparatorOverlay').classList.contains('open')) {
+        compAnimId = requestAnimationFrame(compAnimLoop);
+      }
+    }
+
+    function applyBatchTransformation() {
+      if (capturedFrames.length === 0) {
+        showToast('⚠️ Không có frame nào để áp dụng!');
+        closeComparatorModal();
+        return;
+      }
+
+      const scaleVal = parseInt(document.getElementById('batchScale').value, 10) / 100;
+      const shiftY = parseInt(document.getElementById('batchShiftY').value, 10);
+      const shiftX = parseInt(document.getElementById('batchShiftX').value, 10);
+
+      if (scaleVal === 1.0 && shiftY === 0 && shiftX === 0) {
+        showToast('👌 Kích thước giữ nguyên không đổi.');
+        closeComparatorModal();
+        return;
+      }
+
+      const groundPx = (groundYPercent / 100) * frameH;
+      const midX = frameW / 2;
+
+      capturedFrames.forEach((frame) => {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = frameW;
+        tempCanvas.height = frameH;
+        const tctx = tempCanvas.getContext('2d');
+        tctx.drawImage(frame.canvas, 0, 0);
+
+        const ctx = frame.canvas.getContext('2d');
+        ctx.clearRect(0, 0, frameW, frameH);
+        ctx.save();
+        ctx.translate(midX + shiftX, groundPx + shiftY);
+        ctx.scale(scaleVal, scaleVal);
+        ctx.drawImage(tempCanvas, -midX, -groundPx);
+        ctx.restore();
+      });
+
+      renderGallery();
+      showToast(`🎉 Đã áp dụng co giãn ${Math.round(scaleVal * 100)}% và dịch Y=${shiftY}px lên toàn bộ ${capturedFrames.length} frame!`);
+      closeComparatorModal();
+    }
+
+    // ==================== FOOTER COLLAPSE TOGGLE ====================
+    let isFooterCollapsed = false;
+    function toggleFooterCollapse() {
+      isFooterCollapsed = !isFooterCollapsed;
+      const footer = document.getElementById('galleryFooter');
+      const btn = document.getElementById('btnToggleFooter');
+      if (isFooterCollapsed) {
+        footer.classList.add('collapsed');
+        btn.textContent = '▼ Mở rộng';
+      } else {
+        footer.classList.remove('collapsed');
+        btn.textContent = '▲ Ẩn bớt';
+      }
+    }
+
+  </script>
+</body>
+</html>

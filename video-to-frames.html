@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video to Frames Studio — Trích Xuất & Ghép Hoạt Ảnh Nhân Vật</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #f59e0b;
+      --accent: #38bdf8;
+      --bg-dark: #0f172a;
+      --bg-card: rgba(30, 41, 59, 0.85);
+      --bg-input: rgba(15, 23, 42, 0.65);
+      --border-color: rgba(255, 255, 255, 0.12);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --success: #22c55e;
+      --danger: #ef4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+
+    body {
+      background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 60%, #020617 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Header */
+    header {
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      flex-shrink: 0;
+    }
+
+    .logo-group { display: flex; align-items: center; gap: 12px; }
+
+    .logo-badge {
+      background: linear-gradient(135deg, #38bdf8, #6366f1);
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.4);
+    }
+
+    .logo-title {
+      font-size: 17px; font-weight: 800;
+      background: linear-gradient(90deg, #7dd3fc, #38bdf8, #818cf8);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo-sub { font-size: 11px; color: var(--text-muted); }
+
+    .btn {
+      padding: 8px 16px; border-radius: 8px;
+      border: 1px solid var(--border-color);
+      font-weight: 600; font-size: 12.5px; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all 0.2s; background: var(--bg-card); color: var(--text-main);
+    }
+    .btn:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.3); box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary { background: linear-gradient(135deg, #38bdf8, #0284c7); color: #0f172a; border: none; font-weight: 700; }
+    .btn-primary:hover { background: linear-gradient(135deg, #7dd3fc, #38bdf8); box-shadow: 0 4px 18px rgba(56,189,248,0.45); }
+
+    .btn-success { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; border: none; font-weight: 700; }
+    .btn-success:hover { box-shadow: 0 4px 18px rgba(34,197,94,0.45); }
+
+    .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: #0f172a; border: none; font-weight: 700; }
+
+    .btn-danger { background: rgba(239,68,68,0.2); color: #f87171; border-color: rgba(239,68,68,0.4); }
+    .btn-danger:hover { background: #ef4444; color: white; }
+
+    .btn-lg { padding: 12px 22px; font-size: 14px; }
+
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 10.5px; font-weight: 700;
+    }
+    .badge-primary { background: rgba(56,189,248,0.2); color: #7dd3fc; }
+    .badge-warning { background: rgba(245,158,11,0.2); color: #fde047; }
+    .badge-success { background: rgba(34,197,94,0.2); color: #4ade80; }
+
+    /* Main Container */
+    .container {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 16px 20px;
+      width: 100%;
+      flex: 1;
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 18px;
+    }
+
+    /* Left Panel: Video Player & Extraction Settings */
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      backdrop-filter: blur(12px);
+    }
+
+    .panel-title {
+      font-size: 13.5px; font-weight: 800;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    /* Video Player Area */
+    .video-wrap {
+      position: relative;
+      background: #020617;
+      border-radius: 10px;
+      border: 1.5px solid rgba(255,255,255,0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 220px;
+    }
+
+    video {
+      max-width: 100%;
+      max-height: 240px;
+      display: block;
+    }
+
+    .upload-box {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      background: rgba(15,23,42,0.85);
+      transition: all 0.2s;
+    }
+    .upload-box:hover, .upload-box.dragover { background: rgba(30,41,59,0.95); border: 2px dashed var(--accent); }
+
+    /* Timeline & Trim */
+    .timeline-ctrls {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .timeline-bar {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .time-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .trim-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label { font-size: 11.5px; color: var(--text-muted); font-weight: 500; }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%; background: rgba(15,23,42,0.8);
+      border: 1px solid var(--border-color); border-radius: 6px;
+      padding: 6px 10px; color: var(--text-main);
+      font-size: 12.5px; font-weight: 600; outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+
+    .range-wrap { display: flex; align-items: center; gap: 8px; }
+    input[type="range"] { flex: 1; accent-color: var(--accent); height: 5px; cursor: pointer; }
+    .range-val { font-size: 11.5px; font-weight: 700; color: #7dd3fc; min-width: 36px; text-align: right; }
+
+    .checkbox-row {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      font-size: 12px; font-weight: 600; color: var(--text-main);
+    }
+    .checkbox-row input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+
+    /* Preset frame buttons */
+    .preset-btns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .preset-btn {
+      padding: 6px 4px;
+      font-size: 11px; font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: rgba(15,23,42,0.8);
+      color: var(--text-muted);
+      cursor: pointer; text-align: center;
+      transition: all 0.15s;
+    }
+    .preset-btn:hover { border-color: var(--accent); color: #fff; }
+    .preset-btn.active {
+      background: rgba(56,189,248,0.15);
+      border-color: var(--accent);
+      color: #7dd3fc;
+    }
+
+    /* Right Panel: Extracted Frames Filmstrip & Spritesheet Slicer */
+    .filmstrip-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow: hidden;
+    }
+
+    .frames-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      overflow-y: auto;
+      max-height: 280px;
+      padding: 6px;
+      background: rgba(15,23,42,0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      min-height: 140px;
+    }
+
+    .frame-card {
+      background: rgba(30,41,59,0.8);
+      border: 1.5px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      transition: all 0.2s;
+    }
+    .frame-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+    .frame-preview {
+      width: 100%;
+      height: 110px;
+      background:
+        linear-gradient(45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(-45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #141d2e 75%),
+        linear-gradient(-45deg, transparent 75%, #141d2e 75%);
+      background-size: 10px 10px;
+      background-color: #0c121e;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .frame-preview canvas {
+      max-width: 100%; max-height: 100%; object-fit: contain;
+      image-rendering: pixelated;
+    }
+
+    .frame-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+    }
+
+    .frame-del {
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 20px; height: 20px;
+      background: rgba(239,68,68,0.85);
+      border: none; border-radius: 50%;
+      color: white; font-size: 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .frame-card:hover .frame-del { opacity: 1; }
+
+    /* Animation Preview & Slicer Section */
+    .slicer-section {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1.5px solid var(--border-color);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .anim-and-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #animCanvas {
+      width: 110px; height: 110px;
+      border-radius: 8px;
+      background:
+        linear-gradient(45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(-45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #141d2e 75%),
+        linear-gradient(-45deg, transparent 75%, #141d2e 75%);
+      background-size: 10px 10px;
+      background-color: #0c121e;
+      border: 2px solid rgba(245, 158, 11, 0.4);
+      image-rendering: pixelated;
+      flex-shrink: 0;
+    }
+
+    .slicer-strip-wrap {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 10px;
+      background:
+        linear-gradient(45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(-45deg, #141d2e 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #141d2e 75%),
+        linear-gradient(-45deg, transparent 75%, #141d2e 75%);
+      background-size: 14px 14px;
+      background-color: #0c121e;
+      border: 1.5px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+    }
+
+    #slicerSheetCanvas {
+      display: block;
+      image-rendering: pixelated;
+      max-height: 140px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.3);
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .progress-bar-bg {
+      width: 100%; height: 8px;
+      background: rgba(15,23,42,0.8);
+      border-radius: 4px; overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      transition: width 0.1s;
+    }
+
+    .hint-box {
+      background: rgba(56,189,248,0.08);
+      border-left: 3px solid var(--accent);
+      padding: 8px 10px; border-radius: 0 6px 6px 0;
+      font-size: 11.5px; color: #93c5fd; line-height: 1.45;
+    }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 18px; right: 18px;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid var(--accent);
+      color: #f8fafc; padding: 10px 18px;
+      border-radius: 10px; font-size: 12.5px; font-weight: 600;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      opacity: 0; transform: translateY(10px);
+      transition: all 0.3s; pointer-events: none; z-index: 1000;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-group">
+      <div class="logo-badge">🎬</div>
+      <div>
+        <div class="logo-title">Video to Frames Studio</div>
+        <div class="logo-sub">Tự động nhận diện & Cắt sát nhân vật $\rightarrow$ Ghép thành chuỗi ảnh hoạt họa Spritesheet</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn" style="background: rgba(245,158,11,0.2); border-color: var(--primary); color: #fde047;" onclick="window.location.href='/sprite-slicer.html'">📷 Sprite Slicer Studio</button>
+      <button class="btn" onclick="window.location.href='/'">🎮 Vào Game</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="container">
+    
+    <!-- LEFT: Video Player & Extraction Settings -->
+    <div class="panel">
+      <div class="panel-title">
+        <span>📹 CLIP NGUỒN & THIẾT LẬP CẮT</span>
+        <button class="btn" style="padding: 4px 8px; font-size: 11px;" onclick="document.getElementById('videoFileInput').click()">
+          📁 Đổi Video
+        </button>
+        <input type="file" id="videoFileInput" accept="video/*" style="display: none;">
+      </div>
+
+      <!-- Video Player -->
+      <div class="video-wrap" id="videoDropZone">
+        <video id="sourceVideo" playsinline preload="auto"></video>
+        
+        <div class="upload-box" id="uploadBox" onclick="document.getElementById('videoFileInput').click()">
+          <span style="font-size: 40px;">🎬</span>
+          <strong style="font-size: 14px;">Kéo & Thả Clip Video vào đây</strong>
+          <span style="font-size: 11px; color: var(--text-muted);">Hỗ trợ MP4, WebM, MOV, AVI</span>
+          <button class="btn btn-primary" style="margin-top: 4px;">Chọn File Video</button>
+        </div>
+      </div>
+
+      <!-- Timeline & Trim -->
+      <div class="timeline-ctrls">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 11.5px; font-weight: 700; color: var(--accent);">⏱️ CHỌN ĐOẠN HOẠT ẢNH (TRIM)</span>
+          <span style="font-size: 11px; color: var(--text-muted);" id="videoDurationLabel">0.00s</span>
+        </div>
+
+        <input type="range" class="timeline-bar" id="timelineBar" min="0" max="100" value="0" step="0.01">
+
+        <div class="time-labels">
+          <span id="currentTimeLabel">0.00s</span>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn" style="padding: 2px 6px; font-size: 10px;" onclick="stepVideo(-1)">⏮️ -1 Frame</button>
+            <button class="btn" style="padding: 2px 6px; font-size: 10px;" id="btnPlayVideo" onclick="togglePlayVideo()">▶️ Phát</button>
+            <button class="btn" style="padding: 2px 6px; font-size: 10px;" onclick="stepVideo(1)">+1 Frame ⏭️</button>
+          </div>
+        </div>
+
+        <div class="trim-row">
+          <div>
+            <label>Bắt đầu (Start):</label>
+            <div style="display: flex; gap: 4px;">
+              <input type="number" id="trimStart" value="0.00" step="0.05" min="0">
+              <button class="btn" style="padding: 4px 8px; font-size: 10px;" onclick="setTrimStartCurrent()">📍 Lấy</button>
+            </div>
+          </div>
+          <div>
+            <label>Kết thúc (End):</label>
+            <div style="display: flex; gap: 4px;">
+              <input type="number" id="trimEnd" value="3.70" step="0.05" min="0">
+              <button class="btn" style="padding: 4px 8px; font-size: 10px;" onclick="setTrimEndCurrent()">📍 Lấy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame Count Recommendation & Presets -->
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label style="font-weight: 700; color: #fde047;">🎯 SỐ LƯỢNG KHUNG HÌNH (FRAMES):</label>
+          <span class="badge badge-warning" id="frameCountDisplay">6 frames (Chuẩn vàng)</span>
+        </div>
+
+        <div class="preset-btns">
+          <button class="preset-btn" onclick="selectPresetFrames(4)">4 Frames<br><span style="font-size: 9px; opacity: 0.7;">Nhẹ / Nhanh</span></button>
+          <button class="preset-btn active" onclick="selectPresetFrames(6)">6 Frames<br><span style="font-size: 9px; opacity: 0.7;">Chuẩn Vàng ⭐</span></button>
+          <button class="preset-btn" onclick="selectPresetFrames(8)">8 Frames<br><span style="font-size: 9px; opacity: 0.7;">Rất Mượt</span></button>
+          <button class="preset-btn" onclick="selectPresetFrames(12)">12 Frames<br><span style="font-size: 9px; opacity: 0.7;">Chi Tiết Cao</span></button>
+          <button class="preset-btn" onclick="selectPresetFrames(24)">24 Frames<br><span style="font-size: 9px; opacity: 0.7;">Cinematic 60fps</span></button>
+          <button class="preset-btn" onclick="selectPresetFrames('all')" style="border-color: #f59e0b; color: #fde047;">🔥 Toàn Bộ Frame<br><span style="font-size: 9px; opacity: 0.7;">Cực Kỳ Sắc Nét</span></button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
+          <div>
+            <label>Độ phân giải & Kích cỡ ô:</label>
+            <select id="targetSizeSelect">
+              <option value="160" selected>160 × 160 px (Chuẩn Game 2D)</option>
+              <option value="200">200 × 200 px (HD Sắc Nét)</option>
+              <option value="280">280 × 280 px (Full HD)</option>
+              <option value="384">384 × 384 px (Ultra HD)</option>
+              <option value="512">512 × 512 px (4K Siêu Chi Tiết)</option>
+              <option value="raw">100% Độ phân giải gốc Video</option>
+            </select>
+          </div>
+          <div>
+            <label>Chế độ cắt sát nhân vật:</label>
+            <select id="autoCropMode">
+              <option value="tight" selected>Tự động cắt sát con gà (Auto-Crop)</option>
+              <option value="center">Cắt tâm giữa (Center Square)</option>
+              <option value="none">Không cắt (Giữ toàn màn hình)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Background removal -->
+      <div class="form-group">
+        <label class="checkbox-row">
+          <input type="checkbox" id="chkRemoveBg" checked>
+          <span>Tự động tẩy phông trắng / sáng màu (Transparent PNG)</span>
+        </label>
+        <div class="range-wrap">
+          <span style="font-size: 11px; color: var(--text-muted);">Ngưỡng nhạy tẩy:</span>
+          <input type="range" id="bgThreshold" min="10" max="80" value="35" oninput="document.getElementById('bgThreshVal').textContent=this.value">
+          <span class="range-val" id="bgThreshVal">35</span>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="progress-wrap" id="progressWrap">
+        <div style="display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700;">
+          <span id="progressStatusText">Đang trích xuất & ghép hoạt ảnh...</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+      </div>
+
+      <!-- Extract Button -->
+      <button class="btn btn-primary btn-lg" id="btnExtract" onclick="startExtractFrames()">
+        🎬 BẮT ĐẦU TRÍCH XUẤT & GHÉP HOẠT ẢNH
+      </button>
+
+      <div class="hint-box">
+        💡 <strong>Tự động cắt chuẩn Game:</strong><br>
+        • Công cụ tự động dò tìm vị trí con gà, <strong>cắt bỏ viền thừa</strong> và phóng to vừa vặn khung <strong>160×160px</strong>.<br>
+        • Các frame được ghép thành dải ngang liên hoàn $\rightarrow$ Xem trước mượt mà tức thì!
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Extracted Frames & Spritesheet Slicer -->
+    <div class="panel filmstrip-panel">
+      <div class="panel-title">
+        <span>🖼️ DANH SÁCH KHUNG HÌNH ĐÃ CẮT CHUẨN</span>
+        <span class="badge badge-primary" id="extractedCountBadge">0 frames</span>
+      </div>
+
+      <!-- Extracted Frames Grid -->
+      <div class="frames-grid" id="framesGrid">
+        <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 160px; color: var(--text-muted); gap: 8px;">
+          <span style="font-size: 40px; opacity: 0.4;">🎞️</span>
+          <span style="font-size: 12px;">Chưa có frame nào. Hãy tải video và bấm <strong>BẮT ĐẦU TRÍCH XUẤT</strong>.</span>
+        </div>
+      </div>
+
+      <!-- GHÉP THÀNH SLICER SPRITESHEET & ANIMATION PREVIEW -->
+      <div class="slicer-section">
+        <div class="anim-and-info">
+          <!-- Big Looping Animation Preview Canvas -->
+          <canvas id="animCanvas" width="160" height="160"></canvas>
+
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <strong style="font-size: 14px; color: #fde047;">🎬 Xem Trước Hoạt Ảnh Hoạt Họa</strong>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 11px; color: var(--text-muted);">Tốc độ (FPS):</span>
+                <input type="number" id="previewFps" value="8" min="1" max="30" style="width: 46px; padding: 2px 6px; font-size: 11px;" onchange="animFps=parseInt(this.value)">
+              </div>
+            </div>
+
+            <div style="font-size: 11.5px; color: var(--text-muted);" id="slicerDimensionsLabel">
+              Chưa ghép Spritesheet
+            </div>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-warning" onclick="sendToSpriteStudio()">
+                🚀 Chuyển Sang Sprite Slicer Studio
+              </button>
+              <button class="btn btn-success" onclick="downloadSlicerSheet()">
+                💾 Tải Spritesheet PNG
+              </button>
+              <button class="btn btn-primary" onclick="exportZip()">
+                📦 Tải Từng Frame (ZIP)
+              </button>
+              <button class="btn btn-danger" onclick="clearExtractedFrames()">
+                🗑️ Xóa Tất Cả
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spritesheet Strip Preview -->
+        <div style="font-size: 12px; font-weight: 700; color: #7dd3fc; margin-top: 4px;">
+          🧩 Dải Ảnh Hoạt Họa Spritesheet (Đã ghép liền mạch):
+        </div>
+        <div class="slicer-strip-wrap">
+          <canvas id="slicerSheetCanvas"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div id="toast">Thông báo</div>
+
+  <script>
+    // ==================== STATE ====================
+    let video = document.getElementById('sourceVideo');
+    let videoFile = null;
+    let videoDuration = 0;
+
+    let targetFramesCount = 6;
+    let extractedFrames = []; // Array of { canvas, time }
+    let animFps = 8;
+    let animTimer = 0;
+    let lastAnimTime = 0;
+
+    const animCanvas = document.getElementById('animCanvas');
+    const animCtx = animCanvas.getContext('2d');
+
+    // ==================== TOAST ====================
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    // ==================== VIDEO LOADING ====================
+    function loadVideoFile(file) {
+      if (!file) return;
+      videoFile = file;
+      const url = URL.createObjectURL(file);
+      video.src = url;
+      video.load();
+      video.onloadedmetadata = () => {
+        document.getElementById('uploadBox').style.display = 'none';
+        videoDuration = video.duration;
+        document.getElementById('videoDurationLabel').textContent = videoDuration.toFixed(2) + 's';
+        document.getElementById('timelineBar').max = videoDuration;
+        document.getElementById('trimEnd').value = Math.min(videoDuration, 3.7).toFixed(2);
+        document.getElementById('trimEnd').max = videoDuration;
+        document.getElementById('trimStart').max = videoDuration;
+        showToast(`🎥 Đã tải clip: ${file.name} (${video.videoWidth}×${video.videoHeight}px, ${videoDuration.toFixed(2)}s)`);
+      };
+    }
+
+    document.getElementById('videoFileInput').addEventListener('change', (e) => {
+      loadVideoFile(e.target.files[0]);
+    });
+
+    // Drag & Drop
+    const dropZone = document.getElementById('videoDropZone');
+    ['dragenter', 'dragover'].forEach(ev => dropZone.addEventListener(ev, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); }));
+    ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); }));
+    dropZone.addEventListener('drop', (e) => {
+      const f = e.dataTransfer.files[0];
+      if (f && f.type.startsWith('video/')) {
+        loadVideoFile(f);
+      }
+    });
+
+    // ==================== VIDEO CONTROLS ====================
+    video.addEventListener('timeupdate', () => {
+      document.getElementById('timelineBar').value = video.currentTime;
+      document.getElementById('currentTimeLabel').textContent = video.currentTime.toFixed(2) + 's';
+    });
+
+    document.getElementById('timelineBar').addEventListener('input', (e) => {
+      video.currentTime = parseFloat(e.target.value);
+    });
+
+    function togglePlayVideo() {
+      if (video.paused) {
+        video.play();
+        document.getElementById('btnPlayVideo').textContent = '⏸️ Tạm dừng';
+      } else {
+        video.pause();
+        document.getElementById('btnPlayVideo').textContent = '▶️ Phát';
+      }
+    }
+
+    function stepVideo(frames) {
+      video.pause();
+      document.getElementById('btnPlayVideo').textContent = '▶️ Phát';
+      video.currentTime = Math.max(0, Math.min(videoDuration, video.currentTime + frames * (1 / 30)));
+    }
+
+    function setTrimStartCurrent() {
+      document.getElementById('trimStart').value = video.currentTime.toFixed(2);
+      showToast(`📍 Mốc bắt đầu: ${video.currentTime.toFixed(2)}s`);
+    }
+
+    function setTrimEndCurrent() {
+      document.getElementById('trimEnd').value = video.currentTime.toFixed(2);
+      showToast(`📍 Mốc kết thúc: ${video.currentTime.toFixed(2)}s`);
+    }
+
+    // ==================== FRAME PRESETS ====================
+    function selectPresetFrames(n) {
+      targetFramesCount = n;
+      document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.closest('.preset-btn').classList.add('active');
+      if (n === 'all') {
+        document.getElementById('frameCountDisplay').textContent = 'Toàn bộ khung hình clip (Max Quality)';
+      } else {
+        document.getElementById('frameCountDisplay').textContent = `${n} frames (${n === 6 ? 'Chuẩn Vàng' : n < 6 ? 'Nhẹ' : 'Mượt'})`;
+      }
+    }
+
+    // ==================== AUTO CROP ALGORITHM ====================
+    function cropFramesToUniformSquare(rawCanvases, targetSize, cropMode) {
+      if (cropMode === 'none' || targetSize === 'raw') {
+        return rawCanvases;
+      }
+
+      const size = parseInt(targetSize, 10) || 160;
+      const vw = rawCanvases[0].width;
+      const vh = rawCanvases[0].height;
+
+      let srcX = 0, srcY = 0, srcSize = Math.min(vw, vh);
+
+      if (cropMode === 'tight') {
+        // Find union bounding box of non-transparent pixels across ALL frames
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+        rawCanvases.forEach(canvas => {
+          const ctx = canvas.getContext('2d');
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const d = imgData.data;
+          const w = canvas.width;
+          const h = canvas.height;
+
+          for (let y = 0; y < h; y += 2) { // Step 2 for speed
+            for (let x = 0; x < w; x += 2) {
+              const alpha = d[(y * w + x) * 4 + 3];
+              if (alpha > 25) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+              }
+            }
+          }
+        });
+
+        if (minX !== Infinity && maxX > minX && maxY > minY) {
+          const boxW = maxX - minX;
+          const boxH = maxY - minY;
+          const maxDim = Math.max(boxW, boxH);
+          const pad = maxDim * 0.12; // 12% padding around character
+
+          srcSize = maxDim + pad * 2;
+          const centerX = (minX + maxX) / 2;
+          const bottomY = maxY; // Anchor feet
+
+          srcX = centerX - srcSize / 2;
+          srcY = bottomY - srcSize * 0.90; // Feet at 90% of square height
+        } else {
+          // Fallback center
+          srcSize = Math.min(vw, vh);
+          srcX = (vw - srcSize) / 2;
+          srcY = (vh - srcSize) / 2;
+        }
+      } else {
+        // Center crop
+        srcSize = Math.min(vw, vh);
+        srcX = (vw - srcSize) / 2;
+        srcY = (vh - srcSize) / 2;
+      }
+
+      // Render each frame cropped into a clean size x size square canvas
+      return rawCanvases.map(rawC => {
+        const out = document.createElement('canvas');
+        out.width = size;
+        out.height = size;
+        const ctx = out.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(
+          rawC,
+          srcX, srcY, srcSize, srcSize,
+          0, 0, size, size
+        );
+        return out;
+      });
+    }
+
+    // ==================== EXTRACTION LOGIC ====================
+    async function startExtractFrames() {
+      if (!videoFile || video.videoWidth === 0) {
+        showToast('⚠️ Vui lòng tải clip video lên trước!');
+        return;
+      }
+
+      const tStart = parseFloat(document.getElementById('trimStart').value) || 0;
+      const tEnd = parseFloat(document.getElementById('trimEnd').value) || videoDuration;
+
+      if (tStart >= tEnd) {
+        showToast('⚠️ Thời gian kết thúc phải lớn hơn thời gian bắt đầu!');
+        return;
+      }
+
+      const duration = tEnd - tStart;
+      let count = targetFramesCount;
+      if (count === 'all') {
+        // Approximate 24-30 fps of video clip
+        count = Math.max(2, Math.min(180, Math.floor(duration * 30)));
+      } else {
+        count = parseInt(count, 10) || 6;
+      }
+
+      const step = duration / count;
+      let timePoints = [];
+      for (let i = 0; i < count; i++) {
+        timePoints.push(tStart + i * step);
+      }
+
+      // UI Progress
+      const pWrap = document.getElementById('progressWrap');
+      const pFill = document.getElementById('progressBarFill');
+      const pPercent = document.getElementById('progressPercent');
+      pWrap.style.display = 'flex';
+      document.getElementById('btnExtract').disabled = true;
+
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const removeBg = document.getElementById('chkRemoveBg').checked;
+      const threshold = parseInt(document.getElementById('bgThreshold').value, 10);
+      const targetSize = document.getElementById('targetSizeSelect').value;
+      const autoCropMode = document.getElementById('autoCropMode').value;
+
+      video.pause();
+
+      let rawCanvases = [];
+
+      for (let i = 0; i < timePoints.length; i++) {
+        const t = timePoints[i];
+        await seekVideoToTime(t);
+
+        // Capture raw frame
+        const c = document.createElement('canvas');
+        c.width = vw;
+        c.height = vh;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(video, 0, 0, vw, vh);
+
+        // Remove background if requested
+        if (removeBg) {
+          const imgData = ctx.getImageData(0, 0, vw, vh);
+          const d = imgData.data;
+          for (let p = 0; p < d.length; p += 4) {
+            const diff = 255 - Math.min(d[p], d[p + 1], d[p + 2]);
+            if (diff <= threshold) {
+              d[p + 3] = 0;
+            } else if (diff < threshold + 25) {
+              d[p + 3] = Math.round(((diff - threshold) / 25) * 255);
+            }
+          }
+          ctx.putImageData(imgData, 0, 0);
+        }
+
+        rawCanvases.push(c);
+
+        // Update progress
+        const pct = Math.round(((i + 1) / (timePoints.length * 1.5)) * 100);
+        pFill.style.width = pct + '%';
+        pPercent.textContent = pct + '%';
+      }
+
+      // Auto-Crop tightly around character to uniform square frames
+      const croppedCanvases = cropFramesToUniformSquare(rawCanvases, targetSize, autoCropMode);
+
+      extractedFrames = croppedCanvases.map((c, i) => ({
+        canvas: c,
+        time: timePoints[i]
+      }));
+
+      pFill.style.width = '100%';
+      pPercent.textContent = '100%';
+
+      document.getElementById('btnExtract').disabled = false;
+      setTimeout(() => { pWrap.style.display = 'none'; }, 500);
+
+      renderFramesGrid();
+      updateSlicerSheet();
+      showToast(`🎉 Đã trích xuất & ghép thành công ${extractedFrames.length} khung hình hoạt họa!`);
+    }
+
+    function seekVideoToTime(t) {
+      return new Promise((resolve) => {
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked);
+          resolve();
+        };
+        video.addEventListener('seeked', onSeeked);
+        video.currentTime = t;
+      });
+    }
+
+    // ==================== FRAMES GRID ====================
+    function renderFramesGrid() {
+      const grid = document.getElementById('framesGrid');
+      grid.innerHTML = '';
+
+      document.getElementById('extractedCountBadge').textContent = `${extractedFrames.length} frames`;
+
+      if (extractedFrames.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 160px; color: var(--text-muted); gap: 8px;">
+            <span style="font-size: 40px; opacity: 0.4;">🎞️</span>
+            <span style="font-size: 12px;">Chưa có frame nào. Hãy tải video và bấm <strong>BẮT ĐẦU TRÍCH XUẤT</strong>.</span>
+          </div>
+        `;
+        return;
+      }
+
+      extractedFrames.forEach((fr, idx) => {
+        const card = document.createElement('div');
+        card.className = 'frame-card';
+
+        const preview = document.createElement('div');
+        preview.className = 'frame-preview';
+        const thumb = document.createElement('canvas');
+        thumb.width = fr.canvas.width;
+        thumb.height = fr.canvas.height;
+        thumb.getContext('2d').drawImage(fr.canvas, 0, 0);
+        preview.appendChild(thumb);
+
+        const meta = document.createElement('div');
+        meta.className = 'frame-meta';
+        meta.innerHTML = `<span>#${idx + 1}</span><span>${fr.time.toFixed(2)}s</span>`;
+
+        const btnDel = document.createElement('button');
+        btnDel.className = 'frame-del';
+        btnDel.textContent = '✕';
+        btnDel.title = 'Xóa frame này';
+        btnDel.onclick = (e) => {
+          e.stopPropagation();
+          extractedFrames.splice(idx, 1);
+          renderFramesGrid();
+          updateSlicerSheet();
+        };
+
+        card.appendChild(preview);
+        card.appendChild(meta);
+        card.appendChild(btnDel);
+        grid.appendChild(card);
+      });
+
+      // Update animation canvas size
+      if (extractedFrames.length > 0) {
+        animCanvas.width = extractedFrames[0].canvas.width;
+        animCanvas.height = extractedFrames[0].canvas.height;
+      }
+    }
+
+    function clearExtractedFrames() {
+      extractedFrames = [];
+      renderFramesGrid();
+      updateSlicerSheet();
+      showToast('🗑️ Đã xóa danh sách frames!');
+    }
+
+    // ==================== SLICER SHEET STITCHER ====================
+    function updateSlicerSheet() {
+      const canvas = document.getElementById('slicerSheetCanvas');
+      const ctx = canvas.getContext('2d');
+      const label = document.getElementById('slicerDimensionsLabel');
+
+      if (extractedFrames.length === 0) {
+        canvas.width = 1;
+        canvas.height = 1;
+        label.textContent = 'Chưa có frame';
+        return;
+      }
+
+      const n = extractedFrames.length;
+      const fw = extractedFrames[0].canvas.width;
+      const fh = extractedFrames[0].canvas.height;
+
+      canvas.width = n * fw;
+      canvas.height = fh;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      extractedFrames.forEach((fr, i) => {
+        ctx.drawImage(fr.canvas, i * fw, 0);
+        // Grid border line
+        ctx.strokeStyle = 'rgba(245, 158, 11, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(i * fw, 0, fw, fh);
+      });
+
+      label.textContent = `Dải Spritesheet: ${canvas.width} × ${canvas.height} px (${n} frames × ${fw}×${fh}px)`;
+    }
+
+    function downloadSlicerSheet() {
+      const canvas = document.getElementById('slicerSheetCanvas');
+      if (extractedFrames.length === 0 || canvas.width <= 1) {
+        showToast('⚠️ Không có frame nào để xuất!');
+        return;
+      }
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `character_spritesheet_${extractedFrames.length}frames_${canvas.width}x${canvas.height}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast(`🎉 Đã tải Spritesheet dải hoạt họa (${canvas.width}×${canvas.height}px)!`);
+      }, 'image/png');
+    }
+
+    function sendToSpriteStudio() {
+      const canvas = document.getElementById('slicerSheetCanvas');
+      if (extractedFrames.length === 0 || canvas.width <= 1) {
+        showToast('⚠️ Không có frame nào để gửi!');
+        return;
+      }
+      try {
+        localStorage.setItem('scs_sourceImg', canvas.toDataURL('image/png'));
+        localStorage.setItem('scs_sourceImgName', `Clip_Extracted_${extractedFrames.length}frames`);
+        showToast('🚀 Đang chuyển sang Sprite Slicer Studio...');
+        setTimeout(() => {
+          window.location.href = '/sprite-slicer.html';
+        }, 500);
+      } catch (e) {
+        downloadSlicerSheet();
+        showToast('💾 Đã tải Spritesheet về máy. Hãy mở nó trong Sprite Slicer Studio!');
+      }
+    }
+
+    function exportZip() {
+      if (extractedFrames.length === 0) {
+        showToast('⚠️ Không có frame nào để xuất!');
+        return;
+      }
+      const zip = new JSZip();
+      const folder = zip.folder('character_frames');
+      let done = 0;
+      extractedFrames.forEach((fr, i) => {
+        fr.canvas.toBlob((blob) => {
+          folder.file(`frame_${String(i).padStart(3, '0')}.png`, blob);
+          done++;
+          if (done === extractedFrames.length) {
+            zip.generateAsync({ type: 'blob' }).then((content) => {
+              const url = URL.createObjectURL(content);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `character_frames_${extractedFrames.length}pcs.zip`;
+              a.click();
+              URL.revokeObjectURL(url);
+              showToast(`📦 Đã tải ZIP ${done} frames!`);
+            });
+          }
+        }, 'image/png');
+      });
+    }
+
+    // ==================== ANIMATION LOOP ====================
+    function animLoop(ts) {
+      if (!lastAnimTime) lastAnimTime = ts;
+      const dt = (ts - lastAnimTime) / 1000;
+      lastAnimTime = ts;
+
+      if (extractedFrames.length > 0) {
+        animTimer += dt;
+        const idx = Math.floor(animTimer * animFps) % extractedFrames.length;
+        const fr = extractedFrames[idx].canvas;
+
+        animCtx.clearRect(0, 0, animCanvas.width, animCanvas.height);
+        animCtx.drawImage(fr, 0, 0, animCanvas.width, animCanvas.height);
+      } else {
+        animCtx.clearRect(0, 0, animCanvas.width, animCanvas.height);
+        animCtx.fillStyle = '#64748b';
+        animCtx.font = '12px Outfit';
+        animCtx.textAlign = 'center';
+        animCtx.fillText('Chưa có frame', animCanvas.width / 2, animCanvas.height / 2);
+      }
+
+      requestAnimationFrame(animLoop);
+    }
+    requestAnimationFrame(animLoop);
+
+  </script>
+</body>
+</html>
