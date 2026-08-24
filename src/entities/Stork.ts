@@ -8,6 +8,7 @@
  */
 
 import { GroundPlatform } from '../graphics/plants/GroundPlatform';
+import { AssetLoader } from '../core/AssetLoader';
 
 export type StorkState = 'idle' | 'takeoff' | 'flying' | 'landing';
 
@@ -20,23 +21,20 @@ export class Stork {
   public facing: number = 1; // 1: quay phải, -1: quay trái
   public targetHeight: number = 42; // Thu nhỏ thêm 20% (42px) nhỏ nhắn, thanh thoát tự nhiên
 
-
-
-
   // Sprite Sheet 1: Đứng yên (12 frames)
-  private idleSheet = new Image();
+  private idleSheet: HTMLImageElement;
   private idleLoaded: boolean = false;
   private idleFrames: number = 12;
   private idleFps: number = 8.0;
 
   // Sprite Sheet 2: Bay lên (44 frames)
-  private takeoffSheet = new Image();
+  private takeoffSheet: HTMLImageElement;
   private takeoffLoaded: boolean = false;
   private takeoffFrames: number = 44;
   private takeoffFps: number = 18.0;
 
   // Sprite Sheet 3: Hạ cánh (33 frames)
-  private landingSheet = new Image();
+  private landingSheet: HTMLImageElement;
   private landingLoaded: boolean = false;
   private landingFrames: number = 33;
   private landingFps: number = 16.0;
@@ -54,15 +52,23 @@ export class Stork {
     this.y = y;
     this.groundBaselineY = y;
 
-    this.idleSheet.src = '/assets/characters/stork/stork_idle_custom.png?v=' + Date.now();
-    this.idleSheet.onload = () => { this.idleLoaded = true; };
+    this.idleSheet = AssetLoader.getImage('/assets/characters/stork/stork_idle_custom.png');
+    this.idleLoaded = this.idleSheet.complete && this.idleSheet.naturalWidth > 0;
+    if (!this.idleLoaded) {
+      this.idleSheet.addEventListener('load', () => { this.idleLoaded = true; }, { once: true });
+    }
 
-    this.takeoffSheet.src = '/assets/characters/stork/stork_takeoff_custom.png?v=' + Date.now();
-    this.takeoffSheet.onload = () => { this.takeoffLoaded = true; };
+    this.takeoffSheet = AssetLoader.getImage('/assets/characters/stork/stork_takeoff_custom.png');
+    this.takeoffLoaded = this.takeoffSheet.complete && this.takeoffSheet.naturalWidth > 0;
+    if (!this.takeoffLoaded) {
+      this.takeoffSheet.addEventListener('load', () => { this.takeoffLoaded = true; }, { once: true });
+    }
 
-    this.landingSheet.src = '/assets/characters/stork/stork_landing_custom.png?v=' + Date.now();
-    this.landingSheet.onload = () => { this.landingLoaded = true; };
-
+    this.landingSheet = AssetLoader.getImage('/assets/characters/stork/stork_landing_custom.png');
+    this.landingLoaded = this.landingSheet.complete && this.landingSheet.naturalWidth > 0;
+    if (!this.landingLoaded) {
+      this.landingSheet.addEventListener('load', () => { this.landingLoaded = true; }, { once: true });
+    }
   }
 
   public update(dt: number, groundY: number, playerX?: number): void {

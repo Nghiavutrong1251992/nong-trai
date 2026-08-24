@@ -1,4 +1,5 @@
 import { GroundPlatform } from './GroundPlatform';
+import { AssetLoader } from '../../core/AssetLoader';
 
 export interface BananaInstance {
   x: number;
@@ -10,8 +11,8 @@ export interface BananaInstance {
 }
 
 export class BananaTree {
-  private imgTree = new Image();
-  private imgFruit = new Image();
+  private imgTree: HTMLImageElement;
+  private imgFruit: HTMLImageElement;
   private treeLoaded = false;
   private fruitLoaded = false;
 
@@ -28,15 +29,17 @@ export class BananaTree {
   ];
 
   constructor() {
-    this.imgTree.src = '/assets/props/banana_tree.png';
-    this.imgTree.onload = () => {
-      this.treeLoaded = true;
-    };
+    this.imgTree = AssetLoader.getImage('/assets/props/banana_tree.png');
+    this.treeLoaded = this.imgTree.complete && this.imgTree.naturalWidth > 0;
+    if (!this.treeLoaded) {
+      this.imgTree.addEventListener('load', () => { this.treeLoaded = true; }, { once: true });
+    }
 
-    this.imgFruit.src = '/assets/props/banana_tree_fruit.png';
-    this.imgFruit.onload = () => {
-      this.fruitLoaded = true;
-    };
+    this.imgFruit = AssetLoader.getImage('/assets/props/banana_tree_fruit.png');
+    this.fruitLoaded = this.imgFruit.complete && this.imgFruit.naturalWidth > 0;
+    if (!this.fruitLoaded) {
+      this.imgFruit.addEventListener('load', () => { this.fruitLoaded = true; }, { once: true });
+    }
   }
 
   /**

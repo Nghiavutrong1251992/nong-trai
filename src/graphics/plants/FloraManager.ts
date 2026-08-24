@@ -10,6 +10,7 @@
 
 import { GroundPlatform } from './GroundPlatform';
 import { WildGrass } from './WildGrass';
+import { WildFlower } from './WildFlower';
 import { RiceCrop } from './RiceCrop';
 import { BambooGrove } from './BambooGrove';
 import { BananaTree } from './BananaTree';
@@ -19,6 +20,7 @@ import { VillageHouse } from '../scenery/VillageHouse';
 export class FloraManager {
   public ground = new GroundPlatform();
   public wildGrass = new WildGrass();
+  public wildFlower = new WildFlower();
   public riceCrop = new RiceCrop();
   public bamboo = new BambooGrove();
   public banana = new BananaTree();
@@ -68,8 +70,6 @@ export class FloraManager {
     this.banana.render(ctx, groundY, animTimer, playerX);
   }
 
-
-
   public renderGround(ctx: CanvasRenderingContext2D, width: number, height: number, groundY: number, animTimer: number = 0, playerX?: number): void {
     this.ground.render(ctx, this.mapWidth, height, groundY);
     this.fishPond.render(ctx, groundY, animTimer, playerX);
@@ -102,7 +102,7 @@ export class FloraManager {
     cameraX: number = 0,
     screenW: number = 1400
   ): void {
-    // 1. Cỏ dại hoa tươi trên đường cỏ mở rộng (Tạm ẩn theo yêu cầu, có thể bật lại bất cứ lúc nào)
+    // 1. Cỏ dại hoa tươi trên đường cỏ mở rộng
     if (this.showWildGrass) {
       this.wildGrass.render(
         ctx,
@@ -120,10 +120,10 @@ export class FloraManager {
       );
     }
 
+    // 2. Hoa Dại Đồng Quê (Hoa Xuyến Chi, Hoa Cỏ May, Hoa Chua Me Đất Vàng)
+    this.wildFlower.render(ctx, groundY, animTimer, playerX, cameraX, screenW);
 
-
-
-    // 2. Lớp lúa tiền cảnh (Đứng trước che ngang người chơi tạo độ sâu 2.5D ngập lúa)
+    // 3. Lớp lúa tiền cảnh (Đứng trước che ngang người chơi tạo độ sâu 2.5D ngập lúa)
     this.riceCrop.render(ctx, groundY, playerX, animTimer, cameraX, screenW, 'foreground');
   }
 

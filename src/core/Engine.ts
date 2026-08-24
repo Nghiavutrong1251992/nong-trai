@@ -15,13 +15,15 @@ import { Stork } from '../entities/Stork';
 import { Hen } from '../entities/Hen';
 import { Rooster } from '../entities/Rooster';
 import { Pig } from '../entities/Pig';
-import { FluteKite } from '../entities/FluteKite';
 import { VegetableGirl } from '../entities/VegetableGirl';
+import { BeSinh } from '../entities/BeSinh';
 import { FloraManager } from '../graphics/plants/FloraManager';
 import { SaveManager } from './SaveManager';
 import { InputController } from './InputController';
 import { WorldRenderer } from '../graphics/WorldRenderer';
 import { StudioRenderer } from '../graphics/StudioRenderer';
+
+import { AssetLoader } from './AssetLoader';
 
 export class Engine {
   public canvas!: HTMLCanvasElement;
@@ -39,7 +41,7 @@ export class Engine {
   public rooster = new Rooster(940, 480);
   public pig = new Pig(1020, 480);
   public stork = new Stork(1250, 480);
-  public fluteKite = new FluteKite();
+  public beSinh = new BeSinh(2450, 480);
   public cow = new Cow(960, 480);
   public vegetableGirl = new VegetableGirl(820, 480);
   public floraManager = new FloraManager();
@@ -61,10 +63,9 @@ export class Engine {
   public showAnimalLabels: boolean = false; // Bật/Tắt Phụ Đề Nhãn Tên Thú Nuôi [N] (Mặc định TẮT)
   public showCow: boolean = false; // Ẩn / Hiện Bò Nâu (Mặc định Ẩn)
   public showVegetableGirl: boolean = false; // Ẩn / Hiện Bé Miến Bán Rau (Mặc định Ẩn)
-  public showFluteKite: boolean = false; // Ẩn / Hiện Diều Sáo (Mặc định Ẩn)
 
 
-  public start(): void {
+  public async start(): Promise<void> {
     this.canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     this.ctx = this.canvas.getContext('2d')!;
 
@@ -72,6 +73,26 @@ export class Engine {
     this.resizeCanvas();
 
     this.inputController.bindEvents();
+
+    // 1. TIỀN NẠP ASSET CỐT LÕI (CORE PRELOADING) & CẬP NHẬT GIAO DIỆN
+    const preloaderEl = document.getElementById('game-preloader');
+    const barEl = document.getElementById('preloader-progress-bar');
+    const pctEl = document.getElementById('preloader-pct');
+    const statusEl = document.getElementById('preloader-status-text');
+
+    await AssetLoader.loadCoreAssets((pct, loaded, total) => {
+      if (barEl) barEl.style.width = `${pct}%`;
+      if (pctEl) pctEl.textContent = `${pct}%`;
+      if (statusEl) statusEl.textContent = `Đang nạp: ${loaded}/${total} tài nguyên (${pct}%)...`;
+    });
+
+    // Mờ dần và đóng màn hình Loading mượt mà
+    if (preloaderEl) {
+      preloaderEl.classList.add('fade-out');
+      setTimeout(() => {
+        preloaderEl.style.display = 'none';
+      }, 500);
+    }
 
     // Kết nối âm thanh thời tiết và sấm sét
     this.worldRenderer.weatherManager.onWeatherChange = (weather) => {
@@ -86,8 +107,7 @@ export class Engine {
     };
 
 
-    // 1. Tải và phục hồi dữ liệu thế giới từ localStorage
-
+    // 2. Tải và phục hồi dữ liệu thế giới từ localStorage
     const saved = SaveManager.load();
     if (saved) {
       if (saved.bananas && Array.isArray(saved.bananas) && saved.bananas.length > 0) {
@@ -119,7 +139,11 @@ export class Engine {
     // Tự động lưu tức thì trước khi reload hoặc đóng tab
     window.addEventListener('beforeunload', () => this.saveCurrentStateImmediate());
 
+    // 3. Khởi chạy Game Loop - Đảm bảo Frame 0 có đủ 100% hình ảnh
     requestAnimationFrame((t) => this.loop(t));
+
+    // 4. Kích hoạt tải ngầm Tầng 2 (Lazy Assets)
+    AssetLoader.loadLazyAssets();
   }
 
   public saveCurrentState(): void {
@@ -241,10 +265,8 @@ export class Engine {
       // Cập nhật Chú Heo Hồng (Ăn, Đi dạo, Đứng lắc tai)
       this.pig.update(dt, this.groundY);
 
-      // Cập nhật Diều Sáo Dân Gian (Tạm ẩn theo yêu cầu)
-      if (this.showFluteKite) {
-        this.fluteKite.update(dt, this.player.x, this.player.y, this.player.vx, this.player.facing);
-      }
+      // Cập nhật Bé Sinh (Đứng yên, Đi bộ, Chạy nhảy)
+      this.beSinh.update(dt, this.groundY, this.player.x);
 
       // Cập nhật Chú Bò Nâu Làng Quê (Tạm ẩn theo yêu cầu)
       if (this.showCow) {
@@ -319,7 +341,10 @@ export class Engine {
     // D6. Chú Heo Hồng Làng Quê
     this.pig.render(ctx, this.showAnimalLabels);
 
-    // D7. Chú Bò Nâu Làng Quê (Đã ẩn)
+    // D7. Bé Sinh Làng Quê
+    this.beSinh.render(ctx, this.showAnimalLabels);
+
+    // D8. Chú Bò Nâu Làng Quê (Đã ẩn)
     if (this.showCow) {
       this.cow.render(ctx, this.showAnimalLabels);
     }
@@ -331,12 +356,6 @@ export class Engine {
 
     // F. Nhân Vật Chính
     this.player.render(ctx);
-
-    // Diều sáo & Dây diều nối tay người chơi (Đã ẩn)
-    if (this.showFluteKite) {
-      this.fluteKite.render(ctx, this.player.x, this.player.y, this.player.facing);
-    }
-
 
     // G. Cây lúa Tiền Cảnh che ngang chân & Hoa cỏ dại
     this.floraManager.renderForegroundFlora(ctx, groundY, this.player.x, this.animTimer, this.cameraX, this.width);

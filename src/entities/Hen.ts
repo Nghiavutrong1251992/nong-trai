@@ -7,6 +7,7 @@
  */
 
 import { GroundPlatform } from '../graphics/plants/GroundPlatform';
+import { AssetLoader } from '../core/AssetLoader';
 
 export type HenState = 'idle' | 'peck' | 'walk';
 
@@ -28,12 +29,12 @@ export class Hen {
   public targetHeight: number = 41; // Thu nhỏ 40% (68 * 0.60 = 41px)
 
   // Sprite Sheets Gà Mái Loại 2
-  private walkSheet = new Image();
+  private walkSheet: HTMLImageElement;
   private walkLoaded: boolean = false;
   private walkFrames: number = 45;
   private walkFps: number = 16.0;
 
-  private eatSheet = new Image();
+  private eatSheet: HTMLImageElement;
   private eatLoaded: boolean = false;
   private eatFrames: number = 15;
   private eatFps: number = 12.0;
@@ -54,15 +55,17 @@ export class Hen {
     this.x = x;
     this.y = y;
 
-    this.walkSheet.src = '/assets/characters/hen_v2/hen_walk_sheet.png?v=' + Date.now();
-    this.walkSheet.onload = () => {
-      this.walkLoaded = true;
-    };
+    this.walkSheet = AssetLoader.getImage('/assets/characters/hen_v2/hen_walk_sheet.png');
+    this.walkLoaded = this.walkSheet.complete && this.walkSheet.naturalWidth > 0;
+    if (!this.walkLoaded) {
+      this.walkSheet.addEventListener('load', () => { this.walkLoaded = true; }, { once: true });
+    }
 
-    this.eatSheet.src = '/assets/characters/hen_v2/hen_eat_sheet.png?v=' + Date.now();
-    this.eatSheet.onload = () => {
-      this.eatLoaded = true;
-    };
+    this.eatSheet = AssetLoader.getImage('/assets/characters/hen_v2/hen_eat_sheet.png');
+    this.eatLoaded = this.eatSheet.complete && this.eatSheet.naturalWidth > 0;
+    if (!this.eatLoaded) {
+      this.eatSheet.addEventListener('load', () => { this.eatLoaded = true; }, { once: true });
+    }
   }
 
   public update(dt: number, groundY: number, _playerX?: number): void {

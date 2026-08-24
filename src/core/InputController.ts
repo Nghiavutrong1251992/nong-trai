@@ -65,6 +65,18 @@ export class InputController {
 
     const switchMode = (mode: 'map1' | 'studio') => {
       this.engine.currentMode = mode;
+      const isStudio = mode === 'studio';
+
+      const envPanel = document.getElementById('env-control-panel');
+      const guidePill = document.getElementById('guide-pill');
+      const actionBtns = document.getElementById('action-buttons');
+      const joystick = document.getElementById('joystick-container');
+
+      if (envPanel) envPanel.style.display = isStudio ? 'none' : 'flex';
+      if (guidePill) guidePill.style.display = isStudio ? 'none' : 'block';
+      if (actionBtns) actionBtns.style.display = isStudio ? 'none' : 'flex';
+      if (joystick) joystick.style.display = isStudio ? 'none' : 'block';
+
       if (mode === 'map1') {
         tabMap1?.classList.add('active');
         tabStudio?.classList.remove('active');
@@ -177,10 +189,6 @@ export class InputController {
       }
       if (k === 'y') {
         cycleWeather();
-      }
-      if (k === 'k') {
-        const active = this.engine.fluteKite.toggleActive();
-        this.engine.showToast(active ? '🪁 Đã thả Diều Sáo bay lên trời' : '🪁 Đã thu Diều Sáo');
       }
       if (k === 'f') {
         const pond = this.engine.floraManager.fishPond;

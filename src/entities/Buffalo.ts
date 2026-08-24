@@ -6,6 +6,7 @@
  */
 
 import { GroundPlatform } from '../graphics/plants/GroundPlatform';
+import { AssetLoader } from '../core/AssetLoader';
 
 export class Buffalo {
   public x: number;
@@ -15,19 +16,19 @@ export class Buffalo {
   public targetHeight: number = 115;
 
   // Sprite Sheet 1: Đi dạo (26 frames)
-  private walkSheet = new Image();
+  private walkSheet: HTMLImageElement;
   private walkLoaded: boolean = false;
   private walkFrames: number = 26;
   private walkFps: number = 12.0;
 
   // Sprite Sheet 2: Ăn cỏ (33 frames)
-  private grazeSheet = new Image();
+  private grazeSheet: HTMLImageElement;
   private grazeLoaded: boolean = false;
   private grazeFrames: number = 33;
   private grazeFps: number = 10.0;
 
   // Sprite Sheet 3: Đứng yên (21 frames)
-  private idleSheet = new Image();
+  private idleSheet: HTMLImageElement;
   private idleLoaded: boolean = false;
   private idleFrames: number = 21;
   private idleFps: number = 9.0;
@@ -44,20 +45,23 @@ export class Buffalo {
     this.x = x;
     this.y = y;
 
-    this.walkSheet.src = '/assets/characters/brown_buffalo/buffalo_walk_sheet.png?v=' + Date.now();
-    this.walkSheet.onload = () => {
-      this.walkLoaded = true;
-    };
+    this.walkSheet = AssetLoader.getImage('/assets/characters/brown_buffalo/buffalo_walk_sheet.png');
+    this.walkLoaded = this.walkSheet.complete && this.walkSheet.naturalWidth > 0;
+    if (!this.walkLoaded) {
+      this.walkSheet.addEventListener('load', () => { this.walkLoaded = true; }, { once: true });
+    }
 
-    this.grazeSheet.src = '/assets/characters/brown_buffalo/buffalo_graze_sheet.png?v=' + Date.now();
-    this.grazeSheet.onload = () => {
-      this.grazeLoaded = true;
-    };
+    this.grazeSheet = AssetLoader.getImage('/assets/characters/brown_buffalo/buffalo_graze_sheet.png');
+    this.grazeLoaded = this.grazeSheet.complete && this.grazeSheet.naturalWidth > 0;
+    if (!this.grazeLoaded) {
+      this.grazeSheet.addEventListener('load', () => { this.grazeLoaded = true; }, { once: true });
+    }
 
-    this.idleSheet.src = '/assets/characters/brown_buffalo/buffalo_idle_sheet.png?v=' + Date.now();
-    this.idleSheet.onload = () => {
-      this.idleLoaded = true;
-    };
+    this.idleSheet = AssetLoader.getImage('/assets/characters/brown_buffalo/buffalo_idle_sheet.png');
+    this.idleLoaded = this.idleSheet.complete && this.idleSheet.naturalWidth > 0;
+    if (!this.idleLoaded) {
+      this.idleSheet.addEventListener('load', () => { this.idleLoaded = true; }, { once: true });
+    }
   }
 
   public update(dt: number, groundY: number): void {

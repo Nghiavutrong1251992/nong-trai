@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#08110b">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/assets/farmer_boy_artwork.png">
   <meta name="apple-mobile-web-app-title" content="Làng Quê Việt">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-touch-fullscreen" content="yes">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -423,22 +423,130 @@
     }
 
     /* ============================================================ */
-    /* MOBILE LANDSCAPE RESPONSIVE BREAKPOINT */
+    /* GAME PRELOADER SCREEN STYLES */
     /* ============================================================ */
-    @media (max-height: 600px), (max-width: 900px) {
-      #guide-pill {
-        display: none !important;
-      }
-      .desktop-only-btn {
-        display: none !important;
-      }
-      #btn-mobile-menu {
-        display: flex !important;
-      }
+    #game-preloader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: radial-gradient(circle at 50% 35%, #1e293b 0%, #0f172a 65%, #020617 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      transition: opacity 0.45s ease, visibility 0.45s ease;
+    }
+    #game-preloader.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .preloader-card {
+      max-width: 440px;
+      width: 100%;
+      padding: 32px 28px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(217, 119, 6, 0.2);
+    }
+    .preloader-icon {
+      font-size: 46px;
+      margin-bottom: 12px;
+      filter: drop-shadow(0 4px 12px rgba(245, 158, 11, 0.5));
+      animation: floatIcon 2.4s ease-in-out infinite alternate;
+    }
+    @keyframes floatIcon {
+      from { transform: translateY(0) rotate(-3deg); }
+      to { transform: translateY(-8px) rotate(3deg); }
+    }
+    .preloader-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fef08a;
+      letter-spacing: -0.3px;
+      margin-bottom: 6px;
+    }
+    .preloader-sub {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+    .preloader-bar-wrap {
+      width: 100%;
+      margin-bottom: 18px;
+    }
+    .preloader-bar-track {
+      width: 100%;
+      height: 12px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+      position: relative;
+    }
+    .preloader-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #d97706, #f59e0b, #4ade80);
+      border-radius: 20px;
+      transition: width 0.15s ease-out;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.8);
+    }
+    .preloader-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    #preloader-status-text {
+      color: #cbd5e1;
+    }
+    #preloader-pct {
+      color: #4ade80;
+      font-weight: 800;
+      font-family: monospace;
+    }
+    .preloader-tip {
+      font-size: 12px;
+      color: #94a3b8;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      width: 100%;
     }
   </style>
 </head>
 <body>
+
+  <!-- GAME PRELOADER SCREEN -->
+  <div id="game-preloader">
+    <div class="preloader-card glass-panel">
+      <div class="preloader-icon">🌾</div>
+      <div class="preloader-title">Làng Quê Việt Nam</div>
+      <div class="preloader-sub">Đang nạp thế giới mượt mà 60 FPS...</div>
+
+      <div class="preloader-bar-wrap">
+        <div class="preloader-bar-track">
+          <div id="preloader-progress-bar" class="preloader-bar-fill"></div>
+        </div>
+        <div class="preloader-stats">
+          <span id="preloader-status-text">Đang nạp đồ họa cốt lõi...</span>
+          <span id="preloader-pct">0%</span>
+        </div>
+      </div>
+
+      <div class="preloader-tip">
+        🌾 <em>Mẹo: Dùng phím [A][D] hoặc Cần gạt để di chuyển, [1][2][3] để chọn dụng cụ!</em>
+      </div>
+    </div>
+  </div>
 
   <div id="game-container">
     <canvas id="gameCanvas"></canvas>
@@ -446,7 +554,6 @@
     <!-- Top Navigation Bar -->
     <div id="top-bar">
       <button class="top-btn desktop-only-btn active" id="tab-map1">🌾 Làng Quê</button>
-      <button class="top-btn desktop-only-btn active" id="btn-toggle-kite" style="color: #fb923c; border-color: #fb923c;">🪁 Thả Diều: BẬT [K]</button>
       <button class="top-btn desktop-only-btn active" id="btn-toggle-grid" style="color: #38bdf8; border-color: #38bdf8;">📐 Thước Đo [G]</button>
       <button class="top-btn desktop-only-btn" id="btn-toggle-labels" style="color: #fb923c; border-color: #fb923c;">🏷️ Nhãn Thú: TẮT [N]</button>
       <button class="top-btn desktop-only-btn active" id="btn-toggle-guides" style="color: #ec4899; border-color: #ec4899; display: none;">📏 Đường Kẻ: BẬT [H]</button>

@@ -1,0 +1,104 @@
+{
+  "category": "traditional_vietnamese_farm_tools",
+  "name": "Bộ Dụng Cụ Nông Thôn & Giá Treo Tre",
+  "tools": [
+    {
+      "id": "01_nia_met",
+      "name_vi": "Nia / Mẹt tre",
+      "file": "01_nia_met.png",
+      "width": 341,
+      "height": 239,
+      "type": "bamboo_tray"
+    },
+    {
+      "id": "02_thung_ro",
+      "name_vi": "Thúng / Rổ tre",
+      "file": "02_thung_ro.png",
+      "width": 320,
+      "height": 261,
+      "type": "bamboo_basket"
+    },
+    {
+      "id": "03_sang_gao",
+      "name_vi": "Sàng gạo mắt cáo",
+      "file": "03_sang_gao.png",
+      "width": 343,
+      "height": 244,
+      "type": "bamboo_sieve"
+    },
+    {
+      "id": "04_nom_ca",
+      "name_vi": "Nơm bắt cá",
+      "file": "04_nom_ca.png",
+      "width": 218,
+      "height": 280,
+      "type": "fish_trap"
+    },
+    {
+      "id": "05_don_ganh_quang_thung",
+      "name_vi": "Đòn gánh & Quang thúng",
+      "file": "05_don_ganh_quang_thung.png",
+      "width": 355,
+      "height": 256,
+      "type": "carrying_pole"
+    },
+    {
+      "id": "06_choi_rom_ngan",
+      "name_vi": "Chổi rơm ngắn / Chổi đót",
+      "file": "06_choi_rom_ngan.png",
+      "width": 273,
+      "height": 343,
+      "type": "straw_broom_short"
+    },
+    {
+      "id": "07_hot_rac_tre",
+      "name_vi": "Cái hót rác tre",
+      "file": "07_hot_rac_tre.png",
+      "width": 307,
+      "height": 327,
+      "type": "bamboo_dustpan"
+    },
+    {
+      "id": "08_choi_rom_dai",
+      "name_vi": "Chổi rơm cán dài quét sân",
+      "file": "08_choi_rom_dai.png",
+      "width": 309,
+      "height": 369,
+      "type": "straw_broom_long"
+    }
+  ],
+  "racks": [
+    {
+      "id": "gia_treo_khung_tre_trong",
+      "name_vi": "Giá treo khung tre đứng (Trống)",
+      "file": "gia_treo_khung_tre_trong.png",
+      "width": 901,
+      "height": 830,
+      "type": "standing_rack_empty"
+    },
+    {
+      "id": "gia_treo_day_du_dung_cu",
+      "name_vi": "Giá treo khung tre đứng (Đầy đủ dụng cụ)",
+      "file": "gia_treo_day_du_dung_cu.png",
+      "width": 1110,
+      "height": 861,
+      "type": "standing_rack_full"
+    },
+    {
+      "id": "sao_tre_treo_tuong_trong",
+      "name_vi": "Sào tre treo tường gắn móc (Trống)",
+      "file": "sao_tre_treo_tuong_trong.png",
+      "width": 1270,
+      "height": 335,
+      "type": "wall_rack_empty"
+    },
+    {
+      "id": "sao_tre_treo_tuong_co_dung_cu",
+      "name_vi": "Sào tre treo tường (Có dụng cụ)",
+      "file": "sao_tre_treo_tuong_co_dung_cu.png",
+      "width": 1270,
+      "height": 423,
+      "type": "wall_rack_full"
+    }
+  ]
+}

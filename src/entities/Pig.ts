@@ -7,6 +7,7 @@
  */
 
 import { GroundPlatform } from '../graphics/plants/GroundPlatform';
+import { AssetLoader } from '../core/AssetLoader';
 
 export type PigState = 'idle' | 'eat' | 'walk';
 
@@ -18,19 +19,19 @@ export class Pig {
   public targetHeight: number = 62; // Chiều cao chú heo hồng ủn ỉn (62px)
 
   // Sprite Sheet 1: Đi dạo (23 frames)
-  private walkSheet = new Image();
+  private walkSheet: HTMLImageElement;
   private walkLoaded: boolean = false;
   private walkFrames: number = 23;
   private walkFps: number = 11.0;
 
   // Sprite Sheet 2: Ăn / Húc đất (26 frames)
-  private eatSheet = new Image();
+  private eatSheet: HTMLImageElement;
   private eatLoaded: boolean = false;
   private eatFrames: number = 26;
   private eatFps: number = 11.0;
 
   // Sprite Sheet 3: Đứng yên lắc tai (21 frames)
-  private idleSheet = new Image();
+  private idleSheet: HTMLImageElement;
   private idleLoaded: boolean = false;
   private idleFrames: number = 21;
   private idleFps: number = 8.0;
@@ -47,20 +48,23 @@ export class Pig {
     this.x = x;
     this.y = y;
 
-    this.walkSheet.src = '/assets/characters/pig/pig_walk_sheet.png?v=' + Date.now();
-    this.walkSheet.onload = () => {
-      this.walkLoaded = true;
-    };
+    this.walkSheet = AssetLoader.getImage('/assets/characters/pig/pig_walk_sheet.png');
+    this.walkLoaded = this.walkSheet.complete && this.walkSheet.naturalWidth > 0;
+    if (!this.walkLoaded) {
+      this.walkSheet.addEventListener('load', () => { this.walkLoaded = true; }, { once: true });
+    }
 
-    this.eatSheet.src = '/assets/characters/pig/pig_eat_sheet.png?v=' + Date.now();
-    this.eatSheet.onload = () => {
-      this.eatLoaded = true;
-    };
+    this.eatSheet = AssetLoader.getImage('/assets/characters/pig/pig_eat_sheet.png');
+    this.eatLoaded = this.eatSheet.complete && this.eatSheet.naturalWidth > 0;
+    if (!this.eatLoaded) {
+      this.eatSheet.addEventListener('load', () => { this.eatLoaded = true; }, { once: true });
+    }
 
-    this.idleSheet.src = '/assets/characters/pig/pig_idle_sheet.png?v=' + Date.now();
-    this.idleSheet.onload = () => {
-      this.idleLoaded = true;
-    };
+    this.idleSheet = AssetLoader.getImage('/assets/characters/pig/pig_idle_sheet.png');
+    this.idleLoaded = this.idleSheet.complete && this.idleSheet.naturalWidth > 0;
+    if (!this.idleLoaded) {
+      this.idleSheet.addEventListener('load', () => { this.idleLoaded = true; }, { once: true });
+    }
   }
 
   public update(dt: number, groundY: number): void {

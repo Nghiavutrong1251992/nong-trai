@@ -5,6 +5,8 @@
  * Hỗ trợ tự động tách nền trong suốt và xử lý sprite sheet nhiều hàng.
  */
 
+import { AssetLoader } from '../../core/AssetLoader';
+
 export interface AnimationClip {
   src: string;
   frames: number;
@@ -34,23 +36,23 @@ export class CharacterAnimator {
    * Đăng ký một hành động hoạt ảnh vào hệ thống
    */
   public registerClip(name: string, clip: AnimationClip): void {
-    const img = new Image();
-    img.src = clip.src + '?v=' + Date.now();
+    const img = AssetLoader.getImage(clip.src);
+    clip.image = img;
     clip.isLoaded = false;
 
-    img.onload = () => {
+    const onImgReady = () => {
       const rows = clip.rows || 1;
       const cols = Math.round(clip.frames / rows);
-      const frameW = img.naturalWidth / cols;
-      const frameH = img.naturalHeight / rows;
+      const frameW = (img.naturalWidth || img.width) / cols;
+      const frameH = (img.naturalHeight || img.height) / rows;
       clip.frameW = frameW;
       clip.frameH = frameH;
 
       if (clip.removeBg) {
         try {
           const offCanvas = document.createElement('canvas');
-          offCanvas.width = img.naturalWidth;
-          offCanvas.height = img.naturalHeight;
+          offCanvas.width = img.naturalWidth || img.width;
+          offCanvas.height = img.naturalHeight || img.height;
           const octx = offCanvas.getContext('2d');
           if (octx) {
             octx.drawImage(img, 0, 0);
@@ -80,6 +82,12 @@ export class CharacterAnimator {
       clip.image = img;
       clip.isLoaded = true;
     };
+
+    if (img.complete && (img.naturalWidth > 0 || img.width > 0)) {
+      onImgReady();
+    } else {
+      img.addEventListener('load', onImgReady, { once: true });
+    }
 
     this.clips[name] = clip;
   }

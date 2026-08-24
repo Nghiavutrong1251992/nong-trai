@@ -7,6 +7,7 @@
  */
 
 import { GroundPlatform } from '../graphics/plants/GroundPlatform';
+import { AssetLoader } from '../core/AssetLoader';
 
 export type RoosterState = 'idle' | 'eat' | 'walk';
 
@@ -28,19 +29,19 @@ export class Rooster {
   public targetHeight: number = 52; // Thu nhỏ 30% (74 * 0.70 = 52px)
 
   // Sprite Sheet 1: Đi dạo (26 frames)
-  private walkSheet = new Image();
+  private walkSheet: HTMLImageElement;
   private walkLoaded: boolean = false;
   private walkFrames: number = 26;
   private walkFps: number = 14.0;
 
   // Sprite Sheet 2: Mổ thóc / Ăn (27 frames)
-  private eatSheet = new Image();
+  private eatSheet: HTMLImageElement;
   private eatLoaded: boolean = false;
   private eatFrames: number = 27;
   private eatFps: number = 13.0;
 
   // Sprite Sheet 3: Đứng yên vỗ cánh oai vệ (9 frames)
-  private idleSheet = new Image();
+  private idleSheet: HTMLImageElement;
   private idleLoaded: boolean = false;
   private idleFrames: number = 9;
   private idleFps: number = 8.0;
@@ -61,20 +62,23 @@ export class Rooster {
     this.x = x;
     this.y = y;
 
-    this.walkSheet.src = '/assets/characters/rooster/rooster_walk_sheet.png?v=' + Date.now();
-    this.walkSheet.onload = () => {
-      this.walkLoaded = true;
-    };
+    this.walkSheet = AssetLoader.getImage('/assets/characters/rooster/rooster_walk_sheet.png');
+    this.walkLoaded = this.walkSheet.complete && this.walkSheet.naturalWidth > 0;
+    if (!this.walkLoaded) {
+      this.walkSheet.addEventListener('load', () => { this.walkLoaded = true; }, { once: true });
+    }
 
-    this.eatSheet.src = '/assets/characters/rooster/rooster_eat_sheet.png?v=' + Date.now();
-    this.eatSheet.onload = () => {
-      this.eatLoaded = true;
-    };
+    this.eatSheet = AssetLoader.getImage('/assets/characters/rooster/rooster_eat_sheet.png');
+    this.eatLoaded = this.eatSheet.complete && this.eatSheet.naturalWidth > 0;
+    if (!this.eatLoaded) {
+      this.eatSheet.addEventListener('load', () => { this.eatLoaded = true; }, { once: true });
+    }
 
-    this.idleSheet.src = '/assets/characters/rooster/rooster_idle_sheet.png?v=' + Date.now();
-    this.idleSheet.onload = () => {
-      this.idleLoaded = true;
-    };
+    this.idleSheet = AssetLoader.getImage('/assets/characters/rooster/rooster_idle_sheet.png');
+    this.idleLoaded = this.idleSheet.complete && this.idleSheet.naturalWidth > 0;
+    if (!this.idleLoaded) {
+      this.idleSheet.addEventListener('load', () => { this.idleLoaded = true; }, { once: true });
+    }
   }
 
   public update(dt: number, groundY: number, _playerX?: number): void {
