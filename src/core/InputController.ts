@@ -34,63 +34,16 @@ export class InputController {
   constructor(private engine: Engine) {}
 
   public bindEvents(): void {
-    // Mode Switcher Tabs
-    const tabMap1 = document.getElementById('tab-map1');
-    const tabStudio = document.getElementById('tab-studio');
-    const btnStudioGuides = document.getElementById('btn-toggle-guides');
-    const mBtnStudioGuides = document.getElementById('m-btn-guides');
+    // Studio Navigation Buttons
+    const btnGotoStudio = document.getElementById('tab-studio') || document.getElementById('btn-goto-studio');
+    const mBtnGotoStudio = document.getElementById('m-tab-studio');
 
-    const updateStudioGuideButtons = () => {
-      const isStudio = this.engine.currentMode === 'studio';
-      if (btnStudioGuides) {
-        btnStudioGuides.style.display = isStudio ? 'flex' : 'none';
-        btnStudioGuides.classList.toggle('active', this.engine.studioRenderer.showStudioGuides);
-        btnStudioGuides.textContent = this.engine.studioRenderer.showStudioGuides ? '📏 Đường Kẻ: BẬT [H]' : '📏 Đường Kẻ: TẮT [H]';
-      }
-      if (mBtnStudioGuides) {
-        mBtnStudioGuides.style.display = isStudio ? 'flex' : 'none';
-        mBtnStudioGuides.classList.toggle('active', this.engine.studioRenderer.showStudioGuides);
-        mBtnStudioGuides.textContent = this.engine.studioRenderer.showStudioGuides ? '📏 Đường Kẻ Chiều Cao: BẬT' : '📏 Đường Kẻ Chiều Cao: TẮT';
-      }
+    const gotoStudio = () => {
+      window.location.href = '/studio.html';
     };
 
-    const toggleStudioGuides = () => {
-      this.engine.studioRenderer.showStudioGuides = !this.engine.studioRenderer.showStudioGuides;
-      this.engine.showToast(this.engine.studioRenderer.showStudioGuides ? '📏 Đã BẬT các đường kẻ chiều cao Studio [H]' : '📏 Đã TẮT các đường kẻ chiều cao Studio [H]');
-      updateStudioGuideButtons();
-    };
-
-    btnStudioGuides?.addEventListener('click', toggleStudioGuides);
-    mBtnStudioGuides?.addEventListener('click', toggleStudioGuides);
-
-    const switchMode = (mode: 'map1' | 'studio') => {
-      this.engine.currentMode = mode;
-      const isStudio = mode === 'studio';
-
-      const envPanel = document.getElementById('env-control-panel');
-      const guidePill = document.getElementById('guide-pill');
-      const actionBtns = document.getElementById('action-buttons');
-      const joystick = document.getElementById('joystick-container');
-
-      if (envPanel) envPanel.style.display = isStudio ? 'none' : 'flex';
-      if (guidePill) guidePill.style.display = isStudio ? 'none' : 'block';
-      if (actionBtns) actionBtns.style.display = isStudio ? 'none' : 'flex';
-      if (joystick) joystick.style.display = isStudio ? 'none' : 'block';
-
-      if (mode === 'map1') {
-        tabMap1?.classList.add('active');
-        tabStudio?.classList.remove('active');
-        this.engine.showToast('🌾 Đang xem: Bản Đồ Nông Trại Làng Quê');
-      } else {
-        tabMap1?.classList.remove('active');
-        tabStudio?.classList.add('active');
-        this.engine.showToast('🎬 Đang xem: Studio Đo Hoạt Ảnh (Nhấn [H] ẩn/hiện thước đo)');
-      }
-      updateStudioGuideButtons();
-    };
-
-    tabMap1?.addEventListener('click', () => switchMode('map1'));
-    tabStudio?.addEventListener('click', () => switchMode('studio'));
+    btnGotoStudio?.addEventListener('click', gotoStudio);
+    mBtnGotoStudio?.addEventListener('click', gotoStudio);
 
     // Mobile menu toggle
     const btnMobileMenu = document.getElementById('btn-mobile-menu');
@@ -108,13 +61,6 @@ export class InputController {
         }
       });
     }
-
-    // Mobile tab studio
-    document.getElementById('m-tab-studio')?.addEventListener('click', () => {
-      switchMode(this.engine.currentMode === 'map1' ? 'studio' : 'map1');
-      mobileDropdown?.classList.remove('active');
-      btnMobileMenu?.classList.remove('active');
-    });
 
     // Reset World
     const handleReset = () => {
@@ -145,13 +91,6 @@ export class InputController {
       // Phím E / Enter: Dùng dụng cụ
       if (k === 'e' || k === 'enter') {
         this.handleUseTool();
-      }
-
-      // Phím H: Bật / Tắt đường kẻ Studio
-      if (k === 'h') {
-        if (this.engine.currentMode === 'studio') {
-          toggleStudioGuides();
-        }
       }
 
       // Phím N: Bật / Tắt phụ đề nhãn tên thú nuôi
@@ -551,49 +490,6 @@ export class InputController {
     });
     btnUse?.addEventListener('pointerup', () => btnUse.classList.remove('pressed'));
     btnUse?.addEventListener('pointercancel', () => btnUse.classList.remove('pressed'));
-
-    // Canvas click & hover snapshot capture in Studio
-    const canvas = this.engine.canvas;
-    canvas.addEventListener('click', (e) => {
-      if (this.engine.currentMode !== 'studio') return;
-      const rect = canvas.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
-      this.engine.studioRenderer.handleClick(clickX, clickY);
-    });
-
-    canvas.addEventListener('mousedown', (e) => {
-      if (this.engine.currentMode !== 'studio') return;
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      this.engine.studioRenderer.handleMouseDown(mx, my);
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (this.engine.currentMode !== 'studio') {
-        canvas.style.cursor = 'default';
-        return;
-      }
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      this.engine.studioRenderer.handleMouseMove(mx, my, canvas);
-    });
-
-    window.addEventListener('mouseup', () => {
-      if (this.engine.currentMode !== 'studio') return;
-      this.engine.studioRenderer.handleMouseUp();
-    });
-
-    canvas.addEventListener('wheel', (e) => {
-      if (this.engine.currentMode !== 'studio') return;
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-      this.engine.studioRenderer.handleWheel(mx, my, e.deltaY);
-    }, { passive: false });
 
     this.updateActionButtonsUI();
   }

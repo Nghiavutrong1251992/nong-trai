@@ -11,8 +11,9 @@
  * - Khung Free Transform 8 tay nắm (8-Handle Resize & Offset Box) cho từng Frame
  */
 
-import { Engine } from '../core/Engine';
 import { AssetLoader } from '../core/AssetLoader';
+import { Player } from '../entities/Player';
+import { Buffalo } from '../entities/Buffalo';
 
 export interface FrameAdjustment {
   scaleX: number;   // 1.0 = 100% (Chiều rộng)
@@ -46,6 +47,13 @@ export interface StudioClickTarget {
 
 export type StudioTab = 'be_sinh' | 'flowers' | 'kien_thin' | 'player' | 'buffalo' | 'tools';
 
+export interface StudioHistoryState {
+  frameAdjustments: Record<string, FrameAdjustment>;
+  guideLines: GuideLine[];
+  selectedState: 'idle' | 'walk' | 'run' | 'school';
+  selectedFrameIdx: number;
+}
+
 export class StudioRenderer {
   public showStudioGuides: boolean = true;
   public currentTab: StudioTab = 'be_sinh';
@@ -53,14 +61,25 @@ export class StudioRenderer {
   public kienThinFps: number = 11;
   public kienThinFacing: number = 1;
   public beSinhFacing: number = 1;
+  public flowerDisplayMode: 'single' | 'full' = 'single';
+  public animTimer: number = 0;
 
-  // Thước gióng kéo thả toàn màn hình
+  // History Stack for Undo / Redo [Ctrl+Z]
+  public history: StudioHistoryState[] = [];
+  public redoStack: StudioHistoryState[] = [];
+  private maxHistory: number = 50;
+
+  // Standalone entities for rendering & snapshots
+  public player: Player = new Player(0, 0);
+  public buffalo: Buffalo = new Buffalo(0, 0);
+
+  // Thước gióng kéo thả toàn màn hình (Mặc định căn chuẩn Frame 1)
   public guideLines: GuideLine[] = [
     { id: 'h_head', type: 'h', pos: 220, color: '#38bdf8', label: 'Đỉnh Đầu' },
     { id: 'h_waist', type: 'h', pos: 285, color: '#f59e0b', label: 'Thắt Lưng' },
     { id: 'h_ground', type: 'h', pos: 336, color: '#ef4444', label: 'Gốc Tiếp Đất' },
-    { id: 'v_guide_1', type: 'v', pos: 310, color: '#c084fc', label: 'Thước Dọc 1' },
-    { id: 'v_guide_2', type: 'v', pos: 430, color: '#c084fc', label: 'Thước Dọc 2' }
+    { id: 'v_guide_1', type: 'v', pos: 312, color: '#c084fc', label: 'Thước Dọc 1' },
+    { id: 'v_guide_2', type: 'v', pos: 362, color: '#c084fc', label: 'Thước Dọc 2' }
   ];
 
   // Drag & Transform state
@@ -75,12 +94,87 @@ export class StudioRenderer {
   public initialScaleY: number = 1.0;
 
   // Calibration per-frame: key format "be_sinh_{state}_{frameIndex}"
-  public selectedState: 'idle' | 'walk' | 'run' = 'walk';
+  public selectedState: 'idle' | 'walk' | 'run' | 'school' = 'school';
   public selectedFrameIdx: number = 0;
   public frameAdjustments: Record<string, FrameAdjustment> = {};
 
-  constructor(private engine: Engine) {
+  constructor(public onToast?: (msg: string) => void) {
     this.loadAdjustments();
+  }
+
+  public pushHistory(): void {
+    const snapshot: StudioHistoryState = {
+      frameAdjustments: JSON.parse(JSON.stringify(this.frameAdjustments)),
+      guideLines: JSON.parse(JSON.stringify(this.guideLines)),
+      selectedState: this.selectedState,
+      selectedFrameIdx: this.selectedFrameIdx
+    };
+    this.history.push(snapshot);
+    if (this.history.length > this.maxHistory) {
+      this.history.shift();
+    }
+    this.redoStack = [];
+  }
+
+  public undo(): boolean {
+    if (this.history.length === 0) {
+      this.showToast('ℹ️ Không có thao tác nào để hoàn tác!');
+      return false;
+    }
+    const current: StudioHistoryState = {
+      frameAdjustments: JSON.parse(JSON.stringify(this.frameAdjustments)),
+      guideLines: JSON.parse(JSON.stringify(this.guideLines)),
+      selectedState: this.selectedState,
+      selectedFrameIdx: this.selectedFrameIdx
+    };
+    this.redoStack.push(current);
+
+    const prev = this.history.pop()!;
+    this.frameAdjustments = prev.frameAdjustments;
+    this.guideLines = prev.guideLines;
+    this.selectedState = prev.selectedState;
+    this.selectedFrameIdx = prev.selectedFrameIdx;
+
+    this.saveAdjustments();
+    this.showToast('↩️ Đã hoàn tác (Ctrl+Z)!');
+    return true;
+  }
+
+  public redo(): boolean {
+    if (this.redoStack.length === 0) {
+      this.showToast('ℹ️ Không có thao tác nào để làm lại!');
+      return false;
+    }
+    const current: StudioHistoryState = {
+      frameAdjustments: JSON.parse(JSON.stringify(this.frameAdjustments)),
+      guideLines: JSON.parse(JSON.stringify(this.guideLines)),
+      selectedState: this.selectedState,
+      selectedFrameIdx: this.selectedFrameIdx
+    };
+    this.history.push(current);
+
+    const next = this.redoStack.pop()!;
+    this.frameAdjustments = next.frameAdjustments;
+    this.guideLines = next.guideLines;
+    this.selectedState = next.selectedState;
+    this.selectedFrameIdx = next.selectedFrameIdx;
+
+    this.saveAdjustments();
+    this.showToast('↪️ Đã làm lại (Ctrl+Y)!');
+    return true;
+  }
+
+  public showToast(msg: string): void {
+    if (this.onToast) {
+      this.onToast(msg);
+      return;
+    }
+    const t = document.getElementById('toast');
+    if (t) {
+      t.textContent = msg;
+      t.style.opacity = '1';
+      setTimeout(() => { t.style.opacity = '0'; }, 2400);
+    }
   }
 
   private getAdjKey(state: string, frameIdx: number): string {
@@ -107,7 +201,7 @@ export class StudioRenderer {
     this.saveAdjustments();
   }
 
-  private saveAdjustments(): void {
+  public saveAdjustments(): void {
     try {
       localStorage.setItem('studio_be_sinh_adjustments', JSON.stringify(this.frameAdjustments));
       localStorage.setItem('studio_be_sinh_guides', JSON.stringify(this.guideLines));
@@ -128,6 +222,7 @@ export class StudioRenderer {
   }
 
   public render(ctx: CanvasRenderingContext2D, width: number, height: number, animTimer: number): void {
+    this.animTimer = animTimer;
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, width, height);
 
@@ -197,8 +292,6 @@ export class StudioRenderer {
       });
     });
   }
-
-  public flowerDisplayMode: 'single' | 'full' = 'single';
 
   private renderFlowersTab(ctx: CanvasRenderingContext2D, width: number, height: number, animTimer: number): void {
     const flowerList: Array<{ key: string; name: string; desc: string; singleSrc: string; fullSrc: string }> = [
@@ -332,7 +425,7 @@ export class StudioRenderer {
 
   private renderBeSinhTab(ctx: CanvasRenderingContext2D, width: number, height: number, animTimer: number): void {
     const states: Array<{
-      id: 'idle' | 'walk' | 'run';
+      id: 'idle' | 'walk' | 'school' | 'run';
       title: string;
       icon: string;
       sheetUrl: string;
@@ -344,11 +437,12 @@ export class StudioRenderer {
     }> = [
       { id: 'idle', title: 'Đứng Yên (Idle 6 Frames)', icon: '👧', sheetUrl: '/assets/characters/be_sinh/be_sinh_idle_sheet.png', totalFrames: 6, frameW: 301, frameH: 713, fps: 6, cardColor: '#3b82f6' },
       { id: 'walk', title: 'Đi Bộ Lon Ton (Walk 6 Frames)', icon: '🚶‍♀️', sheetUrl: '/assets/characters/be_sinh/be_sinh_walk_sheet.png', totalFrames: 6, frameW: 298, frameH: 613, fps: 8, cardColor: '#10b981' },
+      { id: 'school', title: 'Bé Đi Học (School 6 Frames)', icon: '🎒', sheetUrl: '/assets/characters/be_sinh/be_sinh_school_sheet.png', totalFrames: 6, frameW: 320, frameH: 620, fps: 8, cardColor: '#8b5cf6' },
       { id: 'run', title: 'Chạy Nhanh Tung Tăng (Run 6 Frames)', icon: '🏃‍♀️', sheetUrl: '/assets/characters/be_sinh/be_sinh_run_sheet.png', totalFrames: 6, frameW: 343, frameH: 475, fps: 10, cardColor: '#f59e0b' }
     ];
 
     const curAdj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
-    const selectedStateObj = states.find(s => s.id === this.selectedState) || states[1];
+    const selectedStateObj = states.find(s => s.id === this.selectedState) || states[2];
 
     ctx.save();
     ctx.fillStyle = '#0f172a';
@@ -360,9 +454,9 @@ export class StudioRenderer {
     ctx.font = '500 11px Outfit, sans-serif';
     ctx.fillText('Thước ngang/dọc kéo tự do khắp màn hình để so sánh. Bấm giữ chuột vào 8 chấm tay nắm quanh nhân vật để kéo dãn to/nhỏ.', 40, 132);
 
-    const toolBarX = width - 820;
+    const toolBarW = 950;
+    const toolBarX = width - toolBarW - 40;
     const toolBarY = 98;
-    const toolBarW = 780;
     const toolBarH = 46;
 
     ctx.fillStyle = '#ffffff';
@@ -379,8 +473,8 @@ export class StudioRenderer {
     ctx.fillText(`🎯 ${selectedStateObj.title.split(' ')[0]} F${this.selectedFrameIdx + 1}:`, toolBarX + 10, toolBarY + 28);
 
     const scaleXLabel = `↔ ${Math.round(curAdj.scaleX * 100)}%`;
-    const btnWMinusX = toolBarX + 120;
-    const btnWPlusX = toolBarX + 185;
+    const btnWMinusX = toolBarX + 115;
+    const btnWPlusX = toolBarX + 175;
     const btnH = 26;
 
     this.drawSmallBtn(ctx, btnWMinusX, toolBarY + 10, 24, btnH, '➖', '#0284c7');
@@ -391,7 +485,7 @@ export class StudioRenderer {
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 10px Outfit, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(scaleXLabel, btnWMinusX + 41, toolBarY + 27);
+    ctx.fillText(scaleXLabel, btnWMinusX + 38, toolBarY + 27);
 
     this.drawSmallBtn(ctx, btnWPlusX, toolBarY + 10, 24, btnH, '➕', '#0284c7');
     this.studioClickTargets.push({
@@ -399,8 +493,8 @@ export class StudioRenderer {
     });
 
     const scaleYLabel = `↕ ${Math.round(curAdj.scaleY * 100)}%`;
-    const btnHMinusX = toolBarX + 220;
-    const btnHPlusX = toolBarX + 285;
+    const btnHMinusX = toolBarX + 208;
+    const btnHPlusX = toolBarX + 268;
 
     this.drawSmallBtn(ctx, btnHMinusX, toolBarY + 10, 24, btnH, '➖', '#10b981');
     this.studioClickTargets.push({
@@ -410,14 +504,14 @@ export class StudioRenderer {
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 10px Outfit, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(scaleYLabel, btnHMinusX + 41, toolBarY + 27);
+    ctx.fillText(scaleYLabel, btnHMinusX + 38, toolBarY + 27);
 
     this.drawSmallBtn(ctx, btnHPlusX, toolBarY + 10, 24, btnH, '➕', '#10b981');
     this.studioClickTargets.push({
       x: btnHPlusX, y: toolBarY + 10, w: 24, h: btnH, type: 'adjust_btn', data: { action: 'scale_y', delta: 0.05 }
     });
 
-    const dPadX = toolBarX + 320;
+    const dPadX = toolBarX + 300;
     const dBtns = [
       { label: '◀', dx: -2, dy: 0, x: dPadX },
       { label: '▲', dx: 0, dy: -2, x: dPadX + 26 },
@@ -432,32 +526,56 @@ export class StudioRenderer {
       });
     });
 
-    const btnAddRulerX = dPadX + 112;
+    const btnCenterX = dPadX + 110;
+    this.drawSmallBtn(ctx, btnCenterX, toolBarY + 10, 74, btnH, '🎯 Về Giữa', '#0284c7');
+    this.studioClickTargets.push({
+      x: btnCenterX, y: toolBarY + 10, w: 74, h: btnH, type: 'adjust_btn', data: { action: 'center_frame' }
+    });
+
+    const btnApplyAllX = btnCenterX + 80;
+    this.drawSmallBtn(ctx, btnApplyAllX, toolBarY + 10, 96, btnH, '✨ Cho Cả 6 Frame', '#10b981');
+    this.studioClickTargets.push({
+      x: btnApplyAllX, y: toolBarY + 10, w: 96, h: btnH, type: 'adjust_btn', data: { action: 'apply_to_all' }
+    });
+
+    const btnAddRulerX = btnApplyAllX + 102;
     this.drawSmallBtn(ctx, btnAddRulerX, toolBarY + 10, 78, btnH, '➕ Thước Dọc', '#9333ea');
     this.studioClickTargets.push({
       x: btnAddRulerX, y: toolBarY + 10, w: 78, h: btnH, type: 'adjust_btn', data: { action: 'add_v_ruler' }
     });
 
-    const btnResetX = btnAddRulerX + 86;
+    const btnUndoX = btnAddRulerX + 84;
+    this.drawSmallBtn(ctx, btnUndoX, toolBarY + 10, 68, btnH, '↩️ Undo', '#4f46e5');
+    this.studioClickTargets.push({
+      x: btnUndoX, y: toolBarY + 10, w: 68, h: btnH, type: 'adjust_btn', data: { action: 'undo' }
+    });
+
+    const btnRedoX = btnUndoX + 74;
+    this.drawSmallBtn(ctx, btnRedoX, toolBarY + 10, 68, btnH, '↪️ Redo', '#4f46e5');
+    this.studioClickTargets.push({
+      x: btnRedoX, y: toolBarY + 10, w: 68, h: btnH, type: 'adjust_btn', data: { action: 'redo' }
+    });
+
+    const btnResetX = btnRedoX + 74;
     this.drawSmallBtn(ctx, btnResetX, toolBarY + 10, 68, btnH, '🔄 Đặt Lại', '#64748b');
     this.studioClickTargets.push({
       x: btnResetX, y: toolBarY + 10, w: 68, h: btnH, type: 'adjust_btn', data: { action: 'reset_frame' }
     });
 
     const btnFlipX = btnResetX + 74;
-    this.drawSmallBtn(ctx, btnFlipX, toolBarY + 10, 78, btnH, this.beSinhFacing > 0 ? '🔄 Quay: R' : '🔄 Quay: L', '#0f172a', '#fef08a');
+    this.drawSmallBtn(ctx, btnFlipX, toolBarY + 10, 74, btnH, this.beSinhFacing > 0 ? '🔄 Quay: R' : '🔄 Quay: L', '#0f172a', '#fef08a');
     this.studioClickTargets.push({
-      x: btnFlipX, y: toolBarY + 10, w: 78, h: btnH, type: 'tool', data: { action: 'flip_be_sinh' }
+      x: btnFlipX, y: toolBarY + 10, w: 74, h: btnH, type: 'tool', data: { action: 'flip_be_sinh' }
     });
 
     ctx.restore();
 
     const rowStartY = 154;
     const availableH = height - rowStartY - 18;
-    const rowH = (availableH - 20) / 3;
+    const rowH = Math.max(120, (availableH - (states.length - 1) * 8) / states.length);
 
     states.forEach((st, sIdx) => {
-      const ry = rowStartY + sIdx * (rowH + 10);
+      const ry = rowStartY + sIdx * (rowH + 8);
       const sheet = AssetLoader.getImage(st.sheetUrl);
 
       ctx.save();
@@ -671,12 +789,97 @@ export class StudioRenderer {
           x: 0, y: g.pos - 8, w: width, h: 16, type: 'guide_handle', data: { guideId: g.id, type: 'h' }
         });
       } else {
+        // Vertical guide line
+        // 1. CHIẾU THƯỚC DỌC SANG TẤT CẢ CÁC FRAME KHÁC ĐỂ TIỆN SO SÁNH
+        if (this.currentTab === 'be_sinh') {
+          const labelW = 175;
+          const dlBtnW = 135;
+          const framesStartX = 48 + labelW + 14;
+          const dlBtnX = width - 40 - dlBtnW - 14;
+          const framesAreaW = dlBtnX - framesStartX - 14;
+          const totalFrames = 6;
+          const frameSlotW = framesAreaW / totalFrames;
+
+          let baseSlot = Math.floor((g.pos - framesStartX) / frameSlotW);
+          if (baseSlot < 0) baseSlot = 0;
+          if (baseSlot >= totalFrames) baseSlot = totalFrames - 1;
+
+          const baseSlotCenterX = framesStartX + baseSlot * frameSlotW + (frameSlotW - 8) / 2;
+          const offsetFromSlotCenter = g.pos - baseSlotCenterX;
+
+          for (let f = 0; f < totalFrames; f++) {
+            if (f === baseSlot) continue;
+            const slotCenterX = framesStartX + f * frameSlotW + (frameSlotW - 8) / 2;
+            const targetX = slotCenterX + offsetFromSlotCenter;
+
+            if (targetX >= framesStartX && targetX <= dlBtnX) {
+              ctx.save();
+              ctx.strokeStyle = g.color;
+              ctx.lineWidth = 1.3;
+              ctx.setLineDash([4, 4]);
+              ctx.globalAlpha = 0.68;
+              ctx.beginPath();
+              ctx.moveTo(targetX, 150);
+              ctx.lineTo(targetX, height - 20);
+              ctx.stroke();
+
+              // Điểm chấm đỉnh Frame
+              ctx.fillStyle = g.color;
+              ctx.beginPath();
+              ctx.arc(targetX, 154, 3, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Cho phép bấm/kéo thước từ bất kỳ Frame nào
+              this.studioClickTargets.push({
+                x: targetX - 8, y: 150, w: 16, h: height - 170, type: 'guide_handle', data: { guideId: g.id, type: 'v', isReplicated: true, targetX }
+              });
+              ctx.restore();
+            }
+          }
+        } else if (this.currentTab === 'kien_thin') {
+          const totalFrames = 8;
+          const pSpacing = Math.min(160, (width - 60) / 8);
+          const pStartX = (width - pSpacing * 8) / 2 + pSpacing / 2;
+
+          let baseSlot = Math.round((g.pos - pStartX) / pSpacing);
+          if (baseSlot < 0) baseSlot = 0;
+          if (baseSlot >= totalFrames) baseSlot = totalFrames - 1;
+
+          const baseSlotCenterX = pStartX + baseSlot * pSpacing;
+          const offsetFromSlotCenter = g.pos - baseSlotCenterX;
+
+          for (let f = 0; f < totalFrames; f++) {
+            if (f === baseSlot) continue;
+            const targetX = pStartX + f * pSpacing + offsetFromSlotCenter;
+            ctx.save();
+            ctx.strokeStyle = g.color;
+            ctx.lineWidth = 1.3;
+            ctx.setLineDash([4, 4]);
+            ctx.globalAlpha = 0.68;
+            ctx.beginPath();
+            ctx.moveTo(targetX, 140);
+            ctx.lineTo(targetX, height - 20);
+            ctx.stroke();
+
+            ctx.fillStyle = g.color;
+            ctx.beginPath();
+            ctx.arc(targetX, 144, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            this.studioClickTargets.push({
+              x: targetX - 8, y: 140, w: 16, h: height - 160, type: 'guide_handle', data: { guideId: g.id, type: 'v', isReplicated: true, targetX }
+            });
+            ctx.restore();
+          }
+        }
+
+        // Vẽ đường thước dọc chính có tay nắm
         ctx.beginPath();
         ctx.moveTo(g.pos, 95);
         ctx.lineTo(g.pos, height);
         ctx.stroke();
 
-        const handleW = 100;
+        const handleW = 105;
         ctx.setLineDash([]);
         ctx.fillStyle = g.color;
         ctx.beginPath();
@@ -899,7 +1102,7 @@ export class StudioRenderer {
       const px = pStartX + i * pSpacing;
       const py = row1Y;
 
-      this.engine.player.renderAt(ctx, px, py, act.state, animTimer, 1);
+      this.player.renderAt(ctx, px, py, act.state, animTimer, 1);
 
       ctx.fillStyle = 'rgba(241, 245, 249, 0.95)';
       ctx.beginPath();
@@ -942,7 +1145,7 @@ export class StudioRenderer {
       const bx = bStartX + i * bSpacing;
       const by = row2Y;
 
-      this.engine.buffalo.renderAt(ctx, bx, by, act.state as any, animTimer, act.facing);
+      this.buffalo.renderAt(ctx, bx, by, act.state as any, animTimer, act.facing);
 
       const btnW = 126;
       const btnH = 28;
@@ -1019,40 +1222,64 @@ export class StudioRenderer {
           this.selectedState = target.data.state;
           this.selectedFrameIdx = target.data.frameIdx;
           const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
-          this.engine.showToast(`🎯 Chọn F${this.selectedFrameIdx + 1} (↔ ${Math.round(adj.scaleX * 100)}%, ↕ ${Math.round(adj.scaleY * 100)}%)`);
+          this.showToast(`🎯 Chọn F${this.selectedFrameIdx + 1} (↔ ${Math.round(adj.scaleX * 100)}%, ↕ ${Math.round(adj.scaleY * 100)}%)`);
         } else if (target.type === 'adjust_btn') {
+          if (target.data.action === 'undo') {
+            this.undo();
+            return;
+          } else if (target.data.action === 'redo') {
+            this.redo();
+            return;
+          }
+
+          this.pushHistory();
           const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
           if (target.data.action === 'scale_x') {
             adj.scaleX = Math.max(0.3, Math.min(3.0, Math.round((adj.scaleX + target.data.delta) * 100) / 100));
-            this.engine.showToast(`↔ Rộng F${this.selectedFrameIdx + 1}: ${Math.round(adj.scaleX * 100)}%`);
+            this.showToast(`↔ Rộng F${this.selectedFrameIdx + 1}: ${Math.round(adj.scaleX * 100)}%`);
           } else if (target.data.action === 'scale_y') {
             adj.scaleY = Math.max(0.3, Math.min(3.0, Math.round((adj.scaleY + target.data.delta) * 100) / 100));
-            this.engine.showToast(`↕ Cao F${this.selectedFrameIdx + 1}: ${Math.round(adj.scaleY * 100)}%`);
+            this.showToast(`↕ Cao F${this.selectedFrameIdx + 1}: ${Math.round(adj.scaleY * 100)}%`);
           } else if (target.data.action === 'move') {
             adj.offsetX += target.data.dx;
             adj.offsetY += target.data.dy;
+          } else if (target.data.action === 'center_frame') {
+            adj.offsetX = 0;
+            adj.offsetY = 0;
+            this.showToast(`🎯 Đã căn Frame ${this.selectedFrameIdx + 1} về chính giữa & chạm đất!`);
+          } else if (target.data.action === 'apply_to_all') {
+            for (let f = 0; f < 6; f++) {
+              const targetAdj = this.getFrameAdj(this.selectedState, f);
+              targetAdj.scaleX = adj.scaleX;
+              targetAdj.scaleY = adj.scaleY;
+              targetAdj.offsetX = adj.offsetX;
+              targetAdj.offsetY = adj.offsetY;
+            }
+            this.showToast(`✨ Đã đồng bộ kích thước F${this.selectedFrameIdx + 1} cho toàn bộ 6 Frame!`);
           } else if (target.data.action === 'add_v_ruler') {
             this.guideLines.push({ id: `v_${Date.now()}`, type: 'v', pos: clickX, color: '#c084fc', label: `Thước Dọc ${this.guideLines.length - 2}` });
-            this.engine.showToast('➕ Đã thêm thước dọc mới! Kéo để gióng.');
+            this.showToast('➕ Đã thêm thước dọc mới! Kéo để gióng.');
           } else if (target.data.action === 'reset_frame') {
             adj.scaleX = 1.0;
             adj.scaleY = 1.0;
             adj.offsetX = 0;
             adj.offsetY = 0;
-            this.engine.showToast(`🔄 Đã đặt lại Frame ${this.selectedFrameIdx + 1}`);
+            this.showToast(`🔄 Đã đặt lại Frame ${this.selectedFrameIdx + 1}`);
           }
           this.saveAdjustments();
         } else if (target.type === 'tool') {
           if (target.data.action === 'toggle_flower_mode') {
             this.flowerDisplayMode = this.flowerDisplayMode === 'single' ? 'full' : 'single';
-            this.engine.showToast(this.flowerDisplayMode === 'single' ? '🌿 Xem: Từng Bụi Lẻ' : '💐 Xem: Cả Dải');
+            this.showToast(this.flowerDisplayMode === 'single' ? '🌿 Xem: Từng Bụi Lẻ' : '💐 Xem: Cả Dải');
           } else if (target.data.action === 'flip_be_sinh') {
+            this.pushHistory();
             this.beSinhFacing = -this.beSinhFacing;
           } else if (target.data.action === 'export_calibrated_sheet') {
             this.exportCalibratedSheet(target.data.state, target.data.sheetUrl, target.data.totalFrames, target.data.frameW, target.data.frameH);
           }
         } else if (target.type === 'kien_thin') {
           if (target.data.action === 'flip') {
+            this.pushHistory();
             this.kienThinFacing = -this.kienThinFacing;
           }
         } else if (target.type === 'download') {
@@ -1060,7 +1287,7 @@ export class StudioRenderer {
           a.href = target.data.url;
           a.download = target.data.filename;
           a.click();
-          this.engine.showToast(`⬇ Đang tải file: ${target.data.filename}`);
+          this.showToast(`⬇ Đang tải file: ${target.data.filename}`);
         } else if (target.type === 'buffalo') {
           this.captureBuffaloSnapshot(target.data.state, target.data.facing, target.data.name);
         } else if (target.type === 'player') {
@@ -1072,19 +1299,55 @@ export class StudioRenderer {
   }
 
   public handleMouseDown(mx: number, my: number): void {
+    // 1. Kiểm tra kéo thước ngang
     for (const g of this.guideLines) {
       if (g.type === 'h' && Math.abs(my - g.pos) <= 10) {
+        this.pushHistory();
         this.draggingGuideId = g.id;
         this.dragStartY = my;
         return;
       }
-      if (g.type === 'v' && Math.abs(mx - g.pos) <= 10) {
-        this.draggingGuideId = g.id;
-        this.dragStartX = mx;
-        return;
+      if (g.type === 'v') {
+        if (Math.abs(mx - g.pos) <= 10) {
+          this.pushHistory();
+          this.draggingGuideId = g.id;
+          this.dragStartX = mx;
+          return;
+        }
+
+        // Cho phép kéo thước từ bất kỳ Frame nào
+        if (this.currentTab === 'be_sinh') {
+          const labelW = 175;
+          const dlBtnW = 135;
+          const framesStartX = 48 + labelW + 14;
+          const dlBtnX = window.innerWidth - 40 - dlBtnW - 14;
+          const framesAreaW = dlBtnX - framesStartX - 14;
+          const totalFrames = 6;
+          const frameSlotW = framesAreaW / totalFrames;
+
+          let baseSlot = Math.floor((g.pos - framesStartX) / frameSlotW);
+          if (baseSlot < 0) baseSlot = 0;
+          if (baseSlot >= totalFrames) baseSlot = totalFrames - 1;
+
+          const baseSlotCenterX = framesStartX + baseSlot * frameSlotW + (frameSlotW - 8) / 2;
+          const offset = g.pos - baseSlotCenterX;
+
+          for (let f = 0; f < totalFrames; f++) {
+            const slotCenterX = framesStartX + f * frameSlotW + (frameSlotW - 8) / 2;
+            const targetX = slotCenterX + offset;
+            if (Math.abs(mx - targetX) <= 10 && my >= 140) {
+              this.pushHistory();
+              g.pos = targetX;
+              this.draggingGuideId = g.id;
+              this.dragStartX = mx;
+              return;
+            }
+          }
+        }
       }
     }
 
+    // 2. Kiểm tra kéo tay nắm / di chuyển Frame
     for (const target of this.studioClickTargets) {
       if (target.type === 'frame_select' &&
           target.data.state === this.selectedState &&
@@ -1092,6 +1355,7 @@ export class StudioRenderer {
           mx >= target.x && mx <= target.x + target.w &&
           my >= target.y && my <= target.y + target.h) {
         
+        this.pushHistory();
         const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
         this.dragStartX = mx;
         this.dragStartY = my;
@@ -1218,6 +1482,7 @@ export class StudioRenderer {
       if (target.type === 'frame_select' &&
           mx >= target.x && mx <= target.x + target.w &&
           my >= target.y && my <= target.y + target.h) {
+        this.pushHistory();
         this.selectedState = target.data.state;
         this.selectedFrameIdx = target.data.frameIdx;
         const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
@@ -1225,7 +1490,7 @@ export class StudioRenderer {
         adj.scaleX = Math.max(0.3, Math.min(3.0, Math.round((adj.scaleX + step) * 100) / 100));
         adj.scaleY = Math.max(0.3, Math.min(3.0, Math.round((adj.scaleY + step) * 100) / 100));
         this.saveAdjustments();
-        this.engine.showToast(`🔍 Zoom F${this.selectedFrameIdx + 1}: ${Math.round(adj.scaleX * 100)}% x ${Math.round(adj.scaleY * 100)}%`);
+        this.showToast(`🔍 Zoom F${this.selectedFrameIdx + 1}: ${Math.round(adj.scaleX * 100)}% x ${Math.round(adj.scaleY * 100)}%`);
         break;
       }
     }
@@ -1240,7 +1505,7 @@ export class StudioRenderer {
   ): void {
     const img = AssetLoader.getImage(sheetUrl);
     if (!img.complete || img.naturalWidth === 0) {
-      this.engine.showToast('⚠️ Đang tải ảnh spritesheet, vui lòng thử lại...');
+      this.showToast('⚠️ Đang tải ảnh spritesheet, vui lòng thử lại...');
       return;
     }
 
@@ -1276,7 +1541,7 @@ export class StudioRenderer {
     link.download = filename;
     link.href = outCanvas.toDataURL('image/png');
     link.click();
-    this.engine.showToast(`💾 Đã xuất Spritesheet đã căn chỉnh: ${filename}`);
+    this.showToast(`💾 Đã xuất Spritesheet đã căn chỉnh: ${filename}`);
   }
 
   public captureBuffaloSnapshot(state: 'idle' | 'walk' | 'graze', facing: number, name: string): void {
@@ -1289,7 +1554,7 @@ export class StudioRenderer {
     if (!offCtx) return;
 
     offCtx.clearRect(0, 0, offW, offH);
-    this.engine.buffalo.renderAt(offCtx, offW / 2, offH * 0.94, state, this.engine.animTimer, facing, 200);
+    this.buffalo.renderAt(offCtx, offW / 2, offH * 0.94, state, this.animTimer, facing, 200);
 
     const safeName = name.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_').toLowerCase();
     const filename = `trau_${safeName}_${Date.now()}.png`;
@@ -1299,7 +1564,7 @@ export class StudioRenderer {
     link.href = offCanvas.toDataURL('image/png');
     link.click();
 
-    this.engine.showToast(`📸 Đã chụp & tải về ảnh trâu: ${filename}`);
+    this.showToast(`📸 Đã chụp & tải về ảnh trâu: ${filename}`);
   }
 
   public capturePlayerSnapshot(state: string, name: string): void {
@@ -1312,7 +1577,7 @@ export class StudioRenderer {
     if (!offCtx) return;
 
     offCtx.clearRect(0, 0, offW, offH);
-    this.engine.player.renderAt(offCtx, offW / 2, offH * 0.94, state, this.engine.animTimer, 1);
+    this.player.renderAt(offCtx, offW / 2, offH * 0.94, state, this.animTimer, 1);
 
     const safeName = name.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]/g, '_').toLowerCase();
     const filename = `nhanvat_${safeName}_${Date.now()}.png`;
@@ -1322,6 +1587,6 @@ export class StudioRenderer {
     link.href = offCanvas.toDataURL('image/png');
     link.click();
 
-    this.engine.showToast(`📸 Đã chụp & tải về ảnh nhân vật: ${filename}`);
+    this.showToast(`📸 Đã chụp & tải về ảnh nhân vật: ${filename}`);
   }
 }

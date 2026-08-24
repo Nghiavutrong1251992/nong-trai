@@ -21,7 +21,6 @@ import { FloraManager } from '../graphics/plants/FloraManager';
 import { SaveManager } from './SaveManager';
 import { InputController } from './InputController';
 import { WorldRenderer } from '../graphics/WorldRenderer';
-import { StudioRenderer } from '../graphics/StudioRenderer';
 
 import { AssetLoader } from './AssetLoader';
 
@@ -49,10 +48,8 @@ export class Engine {
   // Sub-modules
   public inputController = new InputController(this);
   public worldRenderer = new WorldRenderer(this);
-  public studioRenderer = new StudioRenderer(this);
 
   // Game States
-  public currentMode: 'map1' | 'studio' = 'map1';
   public groundY: number = 480;
   public animTimer: number = 0;
   public cameraX: number = 0;
@@ -226,79 +223,71 @@ export class Engine {
   private update(dt: number): void {
     this.animTimer += dt;
 
-    if (this.currentMode === 'map1') {
-      // 1. Cập nhật Bầu Trời & Hiệu ứng thời tiết
-      this.worldRenderer.update(dt);
+    // 1. Cập nhật Bầu Trời & Hiệu ứng thời tiết
+    this.worldRenderer.update(dt);
 
-      // Cập nhật Player & Physics
-      this.player.update(dt, this.inputController.input, this.groundY, this.sound);
+    // Cập nhật Player & Physics
+    this.player.update(dt, this.inputController.input, this.groundY, this.sound);
 
-      // Cập nhật Cây Chuối & Cây Trồng
-      this.floraManager.update(dt);
+    // Cập nhật Cây Chuối & Cây Trồng & Ao Cá
+    this.floraManager.update(dt, this.groundY);
 
-
-      // Hoàn tất bứng cây chuối khi cuốc xong
-      if (this.inputController.pendingDigBanana && this.player.actionTimer <= 0) {
-        const removed = this.floraManager.removeBanana(this.inputController.pendingDigBanana.banana);
-        if (removed) {
-          this.player.carriedBananas.push(this.inputController.pendingDigBanana.banana);
-          this.sound.play('coin');
-          this.showToast(`🎋 Bứng cây chuối thành công! Cất vào túi (x${this.player.carriedBananas.length})`);
-          this.saveCurrentState();
-        }
-        this.inputController.pendingDigBanana = null;
-        this.inputController.updateActionButtonsUI();
+    // Hoàn tất bứng cây chuối khi cuốc xong
+    if (this.inputController.pendingDigBanana && this.player.actionTimer <= 0) {
+      const removed = this.floraManager.removeBanana(this.inputController.pendingDigBanana.banana);
+      if (removed) {
+        this.player.carriedBananas.push(this.inputController.pendingDigBanana.banana);
+        this.sound.play('coin');
+        this.showToast(`🎋 Bứng cây chuối thành công! Cất vào túi (x${this.player.carriedBananas.length})`);
+        this.saveCurrentState();
       }
-
-      // Cập nhật Chú Trâu Mẹ
-      this.buffalo.update(dt, this.groundY);
-
-      // Cập nhật Con Cò Trắng (Đứng ngắm cảnh, cất cánh & sà xuống ruộng lúa)
-      this.stork.update(dt, this.groundY, this.player.x);
-
-      // Cập nhật Gà Mái Loại 2 (Đi dạo & Mổ thóc)
-      this.hen.update(dt, this.groundY, this.player.x);
-
-      // Cập nhật Gà Trống (Đứng yên vỗ cánh, Mổ thóc, Đi dạo)
-      this.rooster.update(dt, this.groundY, this.player.x);
-
-      // Cập nhật Chú Heo Hồng (Ăn, Đi dạo, Đứng lắc tai)
-      this.pig.update(dt, this.groundY);
-
-      // Cập nhật Bé Sinh (Đứng yên, Đi bộ, Chạy nhảy)
-      this.beSinh.update(dt, this.groundY, this.player.x);
-
-      // Cập nhật Chú Bò Nâu Làng Quê (Tạm ẩn theo yêu cầu)
-      if (this.showCow) {
-        this.cow.update(dt, this.groundY);
-      }
-
-      // Cập nhật Cô Bé Bán Rau (Bé Miến) (Tạm ẩn theo yêu cầu)
-      if (this.showVegetableGirl) {
-        this.vegetableGirl.update(dt, this.groundY, this.player.x);
-      }
-
-      // 2. Camera bám theo nhân vật mượt mà
-      const targetCamX = this.player.x - this.width / 2;
-      const minCamX = -400;
-      const maxCamX = Math.max(0, this.mapWidth - this.width + 400);
-      const clampedTarget = Math.max(minCamX, Math.min(maxCamX, targetCamX));
-      this.cameraX += (clampedTarget - this.cameraX) * Math.min(1.0, dt * 8);
-
-      // Cập nhật nhãn nút bấm
+      this.inputController.pendingDigBanana = null;
       this.inputController.updateActionButtonsUI();
     }
+
+    // Cập nhật Chú Trâu Mẹ
+    this.buffalo.update(dt, this.groundY);
+
+    // Cập nhật Con Cò Trắng (Đứng ngắm cảnh, cất cánh & sà xuống ruộng lúa)
+    this.stork.update(dt, this.groundY, this.player.x);
+
+    // Cập nhật Gà Mái Loại 2 (Đi dạo & Mổ thóc)
+    this.hen.update(dt, this.groundY, this.player.x);
+
+    // Cập nhật Gà Trống (Đứng yên vỗ cánh, Mổ thóc, Đi dạo)
+    this.rooster.update(dt, this.groundY, this.player.x);
+
+    // Cập nhật Chú Heo Hồng (Ăn, Đi dạo, Đứng lắc tai)
+    this.pig.update(dt, this.groundY);
+
+    // Cập nhật Bé Sinh (Đứng yên, Đi bộ, Chạy nhảy)
+    this.beSinh.update(dt, this.groundY, this.player.x);
+
+    // Cập nhật Chú Bò Nâu Làng Quê (Tạm ẩn theo yêu cầu)
+    if (this.showCow) {
+      this.cow.update(dt, this.groundY);
+    }
+
+    // Cập nhật Cô Bé Bán Rau (Bé Miến) (Tạm ẩn theo yêu cầu)
+    if (this.showVegetableGirl) {
+      this.vegetableGirl.update(dt, this.groundY, this.player.x);
+    }
+
+    // 2. Camera bám theo nhân vật mượt mà
+    const targetCamX = this.player.x - this.width / 2;
+    const minCamX = -400;
+    const maxCamX = Math.max(0, this.mapWidth - this.width + 400);
+    const clampedTarget = Math.max(minCamX, Math.min(maxCamX, targetCamX));
+    this.cameraX += (clampedTarget - this.cameraX) * Math.min(1.0, dt * 8);
+
+    // Cập nhật nhãn nút bấm
+    this.inputController.updateActionButtonsUI();
   }
 
   private render(): void {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
-
-    if (this.currentMode === 'map1') {
-      this.renderMap1(ctx);
-    } else {
-      this.studioRenderer.render(ctx, this.width, this.height, this.animTimer);
-    }
+    this.renderMap1(ctx);
   }
 
   /**

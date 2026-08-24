@@ -35,6 +35,7 @@ export class AssetLoader {
     { key: 'be_sinh_idle', src: '/assets/characters/be_sinh/be_sinh_idle_sheet.png', isCore: true },
     { key: 'be_sinh_walk', src: '/assets/characters/be_sinh/be_sinh_walk_sheet.png', isCore: true },
     { key: 'be_sinh_run', src: '/assets/characters/be_sinh/be_sinh_run_sheet.png', isCore: true },
+    { key: 'be_sinh_school', src: '/assets/characters/be_sinh/be_sinh_school_sheet.png', isCore: true },
 
     // Bầu trời & Môi trường & Nhà cửa
     { key: 'bg_sky', src: '/assets/environment/map1/bg_sky.jpg', isCore: true },
@@ -93,6 +94,22 @@ export class AssetLoader {
     { key: 'pig_idle', src: '/assets/characters/pig/pig_idle_sheet.png', isCore: true },
     { key: 'pig_walk', src: '/assets/characters/pig/pig_walk_sheet.png', isCore: true },
     { key: 'pig_eat', src: '/assets/characters/pig/pig_eat_sheet.png', isCore: true },
+
+    // 6 Loài cá đồng quê Việt Nam
+    { key: 'fish_chep', src: '/assets/props/fishes/ca_chep.png', isCore: true },
+    { key: 'fish_tre',  src: '/assets/props/fishes/ca_tre.png', isCore: true },
+    { key: 'fish_ro',   src: '/assets/props/fishes/ca_ro.png', isCore: true },
+    { key: 'fish_me',   src: '/assets/props/fishes/ca_me.png', isCore: true },
+    { key: 'fish_loc',  src: '/assets/props/fishes/ca_loc.png', isCore: true },
+    { key: 'fish_vang', src: '/assets/props/fishes/ca_vang.png', isCore: true },
+
+    // 6 Cây thủy sinh / Rong bèo ao cá
+    { key: 'plant_rong_duoi_chon', src: '/assets/props/water_plants/rong_duoi_chon.png', isCore: true },
+    { key: 'plant_beo_tam',        src: '/assets/props/water_plants/beo_tam.png', isCore: true },
+    { key: 'plant_rong_la_dai',    src: '/assets/props/water_plants/rong_la_dai.png', isCore: true },
+    { key: 'plant_co_toc_nuoc',    src: '/assets/props/water_plants/co_toc_nuoc.png', isCore: true },
+    { key: 'plant_rong_xuong_ca',  src: '/assets/props/water_plants/rong_xuong_ca.png', isCore: true },
+    { key: 'plant_rong_diep',      src: '/assets/props/water_plants/rong_diep.png', isCore: true },
 
     { key: 'stork_idle', src: '/assets/characters/stork/stork_idle_custom.png', isCore: true }
   ];

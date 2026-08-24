@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <title>🎬 Studio Đo Hoạt Ảnh — Làng Quê Việt Nam</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #38bdf8;
+      --accent: #f59e0b;
+      --glass-bg: rgba(15, 23, 42, 0.85);
+      --glass-border: rgba(255, 255, 255, 0.18);
+      --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+      --safe-bottom: env(safe-area-inset-bottom, 12px);
+      --safe-top: env(safe-area-inset-top, 10px);
+      --safe-left: env(safe-area-inset-left, 12px);
+      --safe-right: env(safe-area-inset-right, 12px);
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      font-family: 'Outfit', sans-serif;
+    }
+    html, body {
+      background: #0f172a;
+      color: #f8fafc;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+    }
+    #studio-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      background: #f8fafc;
+    }
+
+    /* Glassmorphism */
+    .glass-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      border-radius: 14px;
+    }
+
+    /* Floating Toast */
+    #toast {
+      position: absolute;
+      top: calc(var(--safe-top) + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 18px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fef08a;
+      opacity: 0;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      z-index: 120;
+      max-width: 85vw;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Top Controls Bar */
+    #studio-top-bar {
+      position: absolute;
+      top: calc(var(--safe-top) + 6px);
+      right: calc(var(--safe-right) + 12px);
+      display: flex;
+      gap: 8px;
+      z-index: 80;
+      align-items: center;
+    }
+    .top-btn {
+      padding: 6px 14px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #cbd5e1;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 18px;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .top-btn:hover {
+      color: #f8fafc;
+      border-color: #38bdf8;
+      transform: translateY(-1px);
+    }
+    .top-btn:active {
+      transform: scale(0.95);
+    }
+    .top-btn.active {
+      color: #fde047;
+      border-color: #facc15;
+      background: rgba(30, 41, 59, 0.95);
+    }
+    .top-btn-farm {
+      color: #4ade80;
+      border-color: #22c55e;
+      font-weight: 800;
+      background: rgba(20, 83, 45, 0.7);
+    }
+    .top-btn-farm:hover {
+      color: #86efac;
+      border-color: #4ade80;
+      background: rgba(20, 83, 45, 0.9);
+    }
+
+    /* Preloader */
+    #studio-preloader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: radial-gradient(circle at 50% 35%, #1e293b 0%, #0f172a 65%, #020617 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    #studio-preloader.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .preloader-card {
+      max-width: 440px;
+      width: 100%;
+      padding: 32px 28px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(14, 165, 233, 0.2);
+    }
+    .preloader-icon {
+      font-size: 46px;
+      margin-bottom: 12px;
+      filter: drop-shadow(0 4px 12px rgba(56, 189, 248, 0.5));
+    }
+    .preloader-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #38bdf8;
+      margin-bottom: 6px;
+    }
+    .preloader-sub {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+    .preloader-bar-wrap {
+      width: 100%;
+      margin-bottom: 18px;
+    }
+    .preloader-bar-track {
+      width: 100%;
+      height: 12px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      overflow: hidden;
+      position: relative;
+    }
+    .preloader-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0284c7, #38bdf8, #818cf8);
+      border-radius: 20px;
+      transition: width 0.15s ease-out;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.8);
+    }
+    .preloader-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    #preloader-status-text {
+      color: #cbd5e1;
+    }
+    #preloader-pct {
+      color: #38bdf8;
+      font-weight: 800;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PRELOADER -->
+  <div id="studio-preloader">
+    <div class="preloader-card glass-panel">
+      <div class="preloader-icon">🎬</div>
+      <div class="preloader-title">Studio Đo Hoạt Ảnh</div>
+      <div class="preloader-sub">Đang nạp các bộ Sprite & Frame căn chỉnh...</div>
+
+      <div class="preloader-bar-wrap">
+        <div class="preloader-bar-track">
+          <div id="preloader-progress-bar" class="preloader-bar-fill"></div>
+        </div>
+        <div class="preloader-stats">
+          <span id="preloader-status-text">Đang nạp tài nguyên...</span>
+          <span id="preloader-pct">0%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="studio-container">
+    <canvas id="studioCanvas"></canvas>
+
+    <!-- Top Navigation -->
+    <div id="studio-top-bar">
+      <a href="/" class="top-btn top-btn-farm" id="btn-goto-farm" title="Quay lại Game Nông Trại">🌾 Về Làng Quê</a>
+      <button class="top-btn" id="btn-undo" title="Hoàn tác thay đổi gần nhất [Ctrl+Z]" style="color: #818cf8; border-color: #6366f1;">↩️ Hoàn Tác [Ctrl+Z]</button>
+      <button class="top-btn" id="btn-redo" title="Làm lại thao tác [Ctrl+Y]" style="color: #818cf8; border-color: #6366f1;">↪️ Làm Lại [Ctrl+Y]</button>
+      <button class="top-btn active" id="btn-toggle-guides" style="color: #ec4899; border-color: #ec4899;">📏 Thước Gióng: BẬT [H]</button>
+      <button class="top-btn" id="btn-reset-guides" style="color: #cbd5e1;">🔄 Đặt Lại Thước</button>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="glass-panel">Thông báo</div>
+  </div>
+
+  <script type="module" src="/src/studio.ts"></script>
+</body>
+</html>

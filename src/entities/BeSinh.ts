@@ -11,7 +11,7 @@
 import { GroundPlatform } from '../graphics/plants/GroundPlatform';
 import { AssetLoader } from '../core/AssetLoader';
 
-export type BeSinhState = 'idle' | 'walk' | 'run';
+export type BeSinhState = 'idle' | 'walk' | 'school';
 
 export class BeSinh {
   public x: number;
@@ -32,11 +32,11 @@ export class BeSinh {
   private readonly walkFrames: number = 6;
   private readonly walkFps: number = 8.0;
 
-  // 3. Run Sheet (6 frames @ 343x475)
-  private runSheet: HTMLImageElement;
-  private runLoaded: boolean = false;
-  private readonly runFrames: number = 6;
-  private readonly runFps: number = 10.0;
+  // 3. School Sheet (6 frames @ 320x620)
+  private schoolSheet: HTMLImageElement;
+  private schoolLoaded: boolean = false;
+  private readonly schoolFrames: number = 6;
+  private readonly schoolFps: number = 8.0;
 
   private animTimer: number = 0;
   public state: BeSinhState = 'idle';
@@ -61,10 +61,10 @@ export class BeSinh {
       this.walkSheet.addEventListener('load', () => { this.walkLoaded = true; }, { once: true });
     }
 
-    this.runSheet = AssetLoader.getImage('/assets/characters/be_sinh/be_sinh_run_sheet.png');
-    this.runLoaded = this.runSheet.complete && this.runSheet.naturalWidth > 0;
-    if (!this.runLoaded) {
-      this.runSheet.addEventListener('load', () => { this.runLoaded = true; }, { once: true });
+    this.schoolSheet = AssetLoader.getImage('/assets/characters/be_sinh/be_sinh_school_sheet.png');
+    this.schoolLoaded = this.schoolSheet.complete && this.schoolSheet.naturalWidth > 0;
+    if (!this.schoolLoaded) {
+      this.schoolSheet.addEventListener('load', () => { this.schoolLoaded = true; }, { once: true });
     }
 
     this.pickNextState();
@@ -72,20 +72,23 @@ export class BeSinh {
 
   private pickNextState(): void {
     const roll = Math.random();
-    if (roll < 0.4) {
+    if (roll < 0.35) {
+      // 1. Đứng yên
       this.state = 'idle';
       this.stateTimer = 2.5 + Math.random() * 3.5;
       this.vx = 0;
-    } else if (roll < 0.75) {
+    } else if (roll < 0.68) {
+      // 2. Đi bộ lon ton
       this.state = 'walk';
       this.stateTimer = 3.0 + Math.random() * 4.0;
       this.facing = Math.random() < 0.5 ? 1 : -1;
       this.vx = this.facing * 35;
     } else {
-      this.state = 'run';
-      this.stateTimer = 2.0 + Math.random() * 3.0;
+      // 3. Đi học đeo cặp sách
+      this.state = 'school';
+      this.stateTimer = 3.5 + Math.random() * 4.5;
       this.facing = Math.random() < 0.5 ? 1 : -1;
-      this.vx = this.facing * 75;
+      this.vx = this.facing * 38;
     }
   }
 
@@ -97,12 +100,9 @@ export class BeSinh {
       this.pickNextState();
     }
 
-    // Nếu người chơi ở gần và chạy nhanh, bé có thể chạy theo vui vẻ
-    if (playerX !== undefined && Math.abs(playerX - this.x) < 120 && Math.random() < 0.02 && this.state === 'idle') {
-      this.state = 'run';
+    // Nếu người chơi ở gần, bé có thể quay mặt về phía người chơi và đi lại vui vẻ
+    if (playerX !== undefined && Math.abs(playerX - this.x) < 100 && Math.random() < 0.015 && this.state === 'idle') {
       this.facing = playerX > this.x ? 1 : -1;
-      this.vx = this.facing * 70;
-      this.stateTimer = 2.5;
     }
 
     // Di chuyển
@@ -131,10 +131,10 @@ export class BeSinh {
       sheet = this.walkSheet;
       totalFrames = this.walkFrames;
       fps = this.walkFps;
-    } else if (this.state === 'run') {
-      sheet = this.runSheet;
-      totalFrames = this.runFrames;
-      fps = this.runFps;
+    } else if (this.state === 'school') {
+      sheet = this.schoolSheet;
+      totalFrames = this.schoolFrames;
+      fps = this.schoolFps;
     }
 
     if (!sheet || !sheet.complete || sheet.naturalWidth === 0) return;
