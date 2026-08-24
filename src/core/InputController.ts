@@ -562,6 +562,14 @@ export class InputController {
       this.engine.studioRenderer.handleClick(clickX, clickY);
     });
 
+    canvas.addEventListener('mousedown', (e) => {
+      if (this.engine.currentMode !== 'studio') return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      this.engine.studioRenderer.handleMouseDown(mx, my);
+    });
+
     canvas.addEventListener('mousemove', (e) => {
       if (this.engine.currentMode !== 'studio') {
         canvas.style.cursor = 'default';
@@ -572,6 +580,20 @@ export class InputController {
       const my = e.clientY - rect.top;
       this.engine.studioRenderer.handleMouseMove(mx, my, canvas);
     });
+
+    window.addEventListener('mouseup', () => {
+      if (this.engine.currentMode !== 'studio') return;
+      this.engine.studioRenderer.handleMouseUp();
+    });
+
+    canvas.addEventListener('wheel', (e) => {
+      if (this.engine.currentMode !== 'studio') return;
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      this.engine.studioRenderer.handleWheel(mx, my, e.deltaY);
+    }, { passive: false });
 
     this.updateActionButtonsUI();
   }

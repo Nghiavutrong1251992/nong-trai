@@ -12,12 +12,26 @@
 import { Engine } from '../core/Engine';
 import { AssetLoader } from '../core/AssetLoader';
 
+export interface FrameAdjustment {
+  scale: number;    // 1.0 = 100%
+  offsetX: number;  // px offset X
+  offsetY: number;  // px offset Y
+}
+
+export interface GuideLine {
+  id: string;
+  type: 'h' | 'v';
+  pos: number;
+  color: string;
+  label: string;
+}
+
 export interface StudioClickTarget {
   x: number;
   y: number;
   w: number;
   h: number;
-  type: 'tab' | 'buffalo' | 'player' | 'kien_thin' | 'tool' | 'download';
+  type: 'tab' | 'buffalo' | 'player' | 'kien_thin' | 'tool' | 'download' | 'frame_select' | 'guide_handle' | 'adjust_btn';
   data: any;
 }
 
@@ -25,13 +39,72 @@ export type StudioTab = 'flowers' | 'be_sinh' | 'kien_thin' | 'player' | 'buffal
 
 export class StudioRenderer {
   public showStudioGuides: boolean = true; // Mặc định BẬT cho Studio đầy đủ thông số
-  public currentTab: StudioTab = 'flowers'; // Mặc định mở tab Hoa Dại
+  public currentTab: StudioTab = 'be_sinh'; // Mặc định mở tab Bé Sinh để người dùng tinh chỉnh ngay
   public studioClickTargets: StudioClickTarget[] = [];
   public kienThinFps: number = 11;
   public kienThinFacing: number = 1;
   public beSinhFacing: number = 1;
 
-  constructor(private engine: Engine) {}
+  // Thước gióng kéo thả (Draggable Rulers)
+  public guideLines: GuideLine[] = [
+    { id: 'h_head', type: 'h', pos: 220, color: '#38bdf8', label: 'Đỉnh Đầu' },
+    { id: 'h_waist', type: 'h', pos: 285, color: '#f59e0b', label: 'Thắt Lưng' },
+    { id: 'h_ground', type: 'h', pos: 336, color: '#ef4444', label: 'Gốc Tiếp Đất' },
+    { id: 'v_left', type: 'v', pos: 320, color: '#a855f7', label: 'Biên Trái' },
+    { id: 'v_right', type: 'v', pos: 440, color: '#a855f7', label: 'Biên Phải' }
+  ];
+
+  // Drag state
+  public draggingGuideId: string | null = null;
+  public isDraggingFrame: boolean = false;
+  public isResizingFrame: boolean = false;
+  public dragStartX: number = 0;
+  public dragStartY: number = 0;
+  public initialOffsetX: number = 0;
+  public initialOffsetY: number = 0;
+  public initialScale: number = 1.0;
+
+  // Calibration per-frame: key format "be_sinh_{state}_{frameIndex}"
+  public selectedState: 'idle' | 'walk' | 'run' = 'walk';
+  public selectedFrameIdx: number = 0;
+  public frameAdjustments: Record<string, FrameAdjustment> = {};
+
+  constructor(private engine: Engine) {
+    this.loadAdjustments();
+  }
+
+  private getAdjKey(state: string, frameIdx: number): string {
+    return `be_sinh_${state}_${frameIdx}`;
+  }
+
+  public getFrameAdj(state: string, frameIdx: number): FrameAdjustment {
+    const key = this.getAdjKey(state, frameIdx);
+    if (!this.frameAdjustments[key]) {
+      this.frameAdjustments[key] = { scale: 1.0, offsetX: 0, offsetY: 0 };
+    }
+    return this.frameAdjustments[key];
+  }
+
+  public setFrameAdj(state: string, frameIdx: number, patch: Partial<FrameAdjustment>): void {
+    const adj = this.getFrameAdj(state, frameIdx);
+    Object.assign(adj, patch);
+    this.saveAdjustments();
+  }
+
+  private saveAdjustments(): void {
+    try {
+      localStorage.setItem('studio_be_sinh_adjustments', JSON.stringify(this.frameAdjustments));
+    } catch {}
+  }
+
+  private loadAdjustments(): void {
+    try {
+      const saved = localStorage.getItem('studio_be_sinh_adjustments');
+      if (saved) {
+        this.frameAdjustments = JSON.parse(saved);
+      }
+    } catch {}
+  }
 
   public render(ctx: CanvasRenderingContext2D, width: number, height: number, animTimer: number): void {
     // 1. Nền Studio màu xám nhẹ chống chói chuẩn Studio Đồ Họa
@@ -57,6 +130,11 @@ export class StudioRenderer {
     } else if (this.currentTab === 'tools') {
       this.renderToolsTab(ctx, width, height);
     }
+
+    // 4. VẼ THƯỚC GIÓNG KÉO THẢ TOÀN MÀN HÌNH (RULER GUIDES)
+    if (this.showStudioGuides && (this.currentTab === 'be_sinh' || this.currentTab === 'kien_thin' || this.currentTab === 'player')) {
+      this.renderDraggableGuides(ctx, width, height);
+    }
   }
 
   /**
@@ -64,8 +142,8 @@ export class StudioRenderer {
    */
   private renderHeaderAndTabs(ctx: CanvasRenderingContext2D, width: number): void {
     const tabs: Array<{ id: StudioTab; label: string; icon: string }> = [
-      { id: 'flowers', label: 'Hoa Dại Đồng Quê (8 Loại)', icon: '🌸' },
       { id: 'be_sinh', label: 'Bé Sinh (3 Dáng 6 Frame)', icon: '👧' },
+      { id: 'flowers', label: 'Hoa Dại Đồng Quê (8 Loại)', icon: '🌸' },
       { id: 'kien_thin', label: 'Bé Kiên Thìn (Chạy 8 Frame)', icon: '🏃' },
       { id: 'player', label: 'Nhân Vật Chính (8 Trạng Thái)', icon: '🧑' },
       { id: 'buffalo', label: 'Trâu Làng Quê (5 Dáng)', icon: '🐃' },
@@ -391,7 +469,7 @@ export class StudioRenderer {
   }
 
   /**
-   * TAB: BÉ SINH (3 TRẠNG THÁI HOẠT ẢNH: IDLE, WALK, RUN - MỖI DÁNG 6 FRAME)
+   * TAB: BÉ SINH (3 TRẠNG THÁI HOẠT ẢNH: IDLE, WALK, RUN - MỖI DÁNG 6 FRAME & CÔNG CỤ CÂN CHỈNH CO KÉO)
    */
   private renderBeSinhTab(ctx: CanvasRenderingContext2D, width: number, height: number, animTimer: number): void {
     const states: Array<{
@@ -440,91 +518,151 @@ export class StudioRenderer {
       }
     ];
 
-    // Header phân mục
-    ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 15px Outfit, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('👧 BỘ SƯU TẬP HOẠT ẢNH BÉ SINH (3 TRẠNG THÁI x 6 KHUNG HÌNH CHUẨN NÉT):', 40, 118);
-
-    ctx.fillStyle = '#64748b';
-    ctx.font = '500 11.5px Outfit, sans-serif';
-    ctx.fillText('Đã cắt từng ảnh riêng lẻ vào thư mục "bé sinh", khử nền 100% trong suốt và ghép Spritesheet chuẩn HD.', 40, 136);
-
-    // Nút lật hướng chung
-    const flipBtnW = 120;
-    const flipBtnH = 28;
-    const flipBtnX = width - flipBtnW - 40;
-    const flipBtnY = 112;
+    // 1. THANH ĐIỀU KHIỂN CÂN CHỈNH TỪNG KHUNG HÌNH (CALIBRATION TOOLBAR)
+    const curAdj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
+    const selectedStateObj = states.find(s => s.id === this.selectedState) || states[1];
 
     ctx.save();
     ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 14px Outfit, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('👧 CÂN CHỈNH HOẠT ẢNH BÉ SINH (Bấm chọn frame để co kéo kích thước & dịch chuyển):', 40, 114);
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '500 11px Outfit, sans-serif';
+    ctx.fillText('Kéo thả các đường thước kẻ Xanh/Vàng/Đỏ/Tím để so tỷ lệ. Bấm giữ chuột vào ảnh để dịch chuyển hoặc kéo 4 góc để phóng to/thu nhỏ.', 40, 132);
+
+    // Bảng công cụ điều khiển Frame đang chọn
+    const toolBarX = width - 680;
+    const toolBarY = 100;
+    const toolBarW = 640;
+    const toolBarH = 44;
+
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(flipBtnX, flipBtnY, flipBtnW, flipBtnH, 8);
+    ctx.roundRect(toolBarX, toolBarY, toolBarW, toolBarH, 10);
     ctx.fill();
     ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    ctx.fillStyle = '#fef08a';
+    // Nhãn Frame đang chọn
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 11.5px Outfit, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`🎯 ${selectedStateObj.title.split(' ')[0]} F${this.selectedFrameIdx + 1}:`, toolBarX + 12, toolBarY + 26);
+
+    // Nút Co kéo Kích Thước: [-] 5% [+]
+    const scaleLabel = `${Math.round(curAdj.scale * 100)}%`;
+    const btnMinusX = toolBarX + 130;
+    const btnPlusX = toolBarX + 200;
+    const btnH = 26;
+
+    // Nút Scale [-]
+    this.drawSmallBtn(ctx, btnMinusX, toolBarY + 9, 28, btnH, '➖', '#0284c7');
+    this.studioClickTargets.push({
+      x: btnMinusX, y: toolBarY + 9, w: 28, h: btnH,
+      type: 'adjust_btn',
+      data: { action: 'scale', delta: -0.05 }
+    });
+
+    ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 11px Outfit, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(this.beSinhFacing > 0 ? '🔄 Quay: PHẢI' : '🔄 Quay: TRÁI', flipBtnX + flipBtnW / 2, flipBtnY + 18);
-    ctx.restore();
+    ctx.fillText(scaleLabel, btnMinusX + 46, toolBarY + 26);
 
+    // Nút Scale [+]
+    this.drawSmallBtn(ctx, btnPlusX + 18, toolBarY + 9, 28, btnH, '➕', '#0284c7');
     this.studioClickTargets.push({
-      x: flipBtnX,
-      y: flipBtnY,
-      w: flipBtnW,
-      h: flipBtnH,
+      x: btnPlusX + 18, y: toolBarY + 9, w: 28, h: btnH,
+      type: 'adjust_btn',
+      data: { action: 'scale', delta: 0.05 }
+    });
+
+    // Nút Dịch chuyển: [◀] [▲] [▼] [▶]
+    const dPadX = toolBarX + 290;
+    const dBtns = [
+      { label: '◀', dx: -2, dy: 0, x: dPadX },
+      { label: '▲', dx: 0, dy: -2, x: dPadX + 30 },
+      { label: '▼', dx: 0, dy: 2, x: dPadX + 60 },
+      { label: '▶', dx: 2, dy: 0, x: dPadX + 90 }
+    ];
+
+    dBtns.forEach(b => {
+      this.drawSmallBtn(ctx, b.x, toolBarY + 9, 26, btnH, b.label, '#475569');
+      this.studioClickTargets.push({
+        x: b.x, y: toolBarY + 9, w: 26, h: btnH,
+        type: 'adjust_btn',
+        data: { action: 'move', dx: b.dx, dy: b.dy }
+      });
+    });
+
+    // Nút Reset Frame
+    const btnResetX = dPadX + 130;
+    this.drawSmallBtn(ctx, btnResetX, toolBarY + 9, 82, btnH, '🔄 Đặt Lại', '#64748b');
+    this.studioClickTargets.push({
+      x: btnResetX, y: toolBarY + 9, w: 82, h: btnH,
+      type: 'adjust_btn',
+      data: { action: 'reset_frame' }
+    });
+
+    // Nút Lật Hướng
+    const btnFlipX = btnResetX + 90;
+    this.drawSmallBtn(ctx, btnFlipX, toolBarY + 9, 90, btnH, this.beSinhFacing > 0 ? '🔄 Quay: PHẢI' : '🔄 Quay: TRÁI', '#0f172a', '#fef08a');
+    this.studioClickTargets.push({
+      x: btnFlipX, y: toolBarY + 9, w: 90, h: btnH,
       type: 'tool',
       data: { action: 'flip_be_sinh' }
     });
 
-    // 3 Dải Hàng Ngang (1 Hàng cho mỗi Trạng Thái)
-    const rowStartY = 156;
-    const availableH = height - rowStartY - 20;
-    const rowH = (availableH - 24) / 3;
+    ctx.restore();
+
+    // 2. 3 DẢI HÀNG NGANG (IDLE, WALK, RUN)
+    const rowStartY = 154;
+    const availableH = height - rowStartY - 18;
+    const rowH = (availableH - 20) / 3;
 
     states.forEach((st, sIdx) => {
-      const ry = rowStartY + sIdx * (rowH + 12);
+      const ry = rowStartY + sIdx * (rowH + 10);
       const sheet = AssetLoader.getImage(st.sheetUrl);
 
-      // 1. Khung Card Hàng
+      // Khung Hàng
       ctx.save();
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.roundRect(40, ry, width - 80, rowH, 12);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(203, 213, 225, 0.8)';
-      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = (this.selectedState === st.id) ? 'rgba(245, 158, 11, 0.45)' : 'rgba(203, 213, 225, 0.8)';
+      ctx.lineWidth = (this.selectedState === st.id) ? 2 : 1.2;
       ctx.stroke();
 
-      // 2. Cột Tiêu Đề bên trái
-      const labelW = 180;
+      // Cột Tiêu Đề bên trái
+      const labelW = 175;
       ctx.fillStyle = '#f8fafc';
       ctx.beginPath();
-      ctx.roundRect(48, ry + 8, labelW, rowH - 16, 8);
+      ctx.roundRect(48, ry + 6, labelW, rowH - 12, 8);
       ctx.fill();
 
       ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 12px Outfit, sans-serif';
+      ctx.font = 'bold 11.5px Outfit, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(`${st.icon} ${st.title}`, 60, ry + 32);
+      ctx.fillText(`${st.icon} ${st.title}`, 58, ry + 24);
 
-      // Live Animation Box bên trái
-      const liveBoxX = 60;
-      const liveBoxY = ry + 42;
-      const liveBoxW = 156;
-      const liveBoxH = rowH - 64;
+      // Live Animation Preview
+      const liveBoxX = 58;
+      const liveBoxY = ry + 32;
+      const liveBoxW = 155;
+      const liveBoxH = rowH - 42;
 
       if (sheet.complete && sheet.naturalWidth > 0) {
         const curFrame = Math.floor(animTimer * st.fps) % st.totalFrames;
-        const liveScale = Math.min((liveBoxH - 12) / st.frameH, (liveBoxW - 12) / st.frameW);
+        const liveAdj = this.getFrameAdj(st.id, curFrame);
+        const liveScale = Math.min((liveBoxH - 12) / st.frameH, (liveBoxW - 12) / st.frameW) * liveAdj.scale;
         const liveW = st.frameW * liveScale;
         const liveH = st.frameH * liveScale;
 
         ctx.save();
-        ctx.translate(liveBoxX + liveBoxW / 2, liveBoxY + liveBoxH - 6);
+        ctx.translate(liveBoxX + liveBoxW / 2 + liveAdj.offsetX * 0.3, liveBoxY + liveBoxH - 6 + liveAdj.offsetY * 0.3);
 
         // Bóng đổ
         ctx.fillStyle = 'rgba(0,0,0,0.15)';
@@ -544,10 +682,10 @@ export class StudioRenderer {
         ctx.restore();
       }
 
-      // Nút Tải Spritesheet
-      const dlBtnW = 120;
-      const dlBtnH = 24;
-      const dlBtnX = width - 40 - dlBtnW - 16;
+      // Nút Tải Spritesheet / Xuất Spritesheet Đã Cân Chỉnh
+      const dlBtnW = 135;
+      const dlBtnH = 26;
+      const dlBtnX = width - 40 - dlBtnW - 14;
       const dlBtnY = ry + (rowH - dlBtnH) / 2;
 
       ctx.fillStyle = '#0284c7';
@@ -558,7 +696,7 @@ export class StudioRenderer {
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 10px Outfit, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(`⬇ Tải Sheet (${st.totalFrames}F)`, dlBtnX + dlBtnW / 2, dlBtnY + 16);
+      ctx.fillText(`💾 Xuất Sheet Đã Chỉnh`, dlBtnX + dlBtnW / 2, dlBtnY + 17);
       ctx.restore();
 
       this.studioClickTargets.push({
@@ -566,42 +704,68 @@ export class StudioRenderer {
         y: dlBtnY,
         w: dlBtnW,
         h: dlBtnH,
-        type: 'download',
-        data: { url: st.sheetUrl, filename: `be_sinh_${st.id}_sheet.png` }
+        type: 'tool',
+        data: { action: 'export_calibrated_sheet', state: st.id, sheetUrl: st.sheetUrl, totalFrames: st.totalFrames, frameW: st.frameW, frameH: st.frameH }
       });
 
-      // 3. Hiển thị 6 Khung hình bóc tách chi tiết (Frame-by-frame)
-      const framesStartX = 48 + labelW + 16;
-      const framesAreaW = dlBtnX - framesStartX - 16;
+      // 3. HIỂN THỊ 6 KHUNG HÌNH BÓC TÁCH KÈM BỘ CO KÉO TRỰC QUAN
+      const framesStartX = 48 + labelW + 14;
+      const framesAreaW = dlBtnX - framesStartX - 14;
       const frameSlotW = framesAreaW / st.totalFrames;
 
       for (let f = 0; f < st.totalFrames; f++) {
         const fx = framesStartX + f * frameSlotW;
-        const fy = ry + 8;
+        const fy = ry + 6;
         const fw = frameSlotW - 8;
-        const fh = rowH - 16;
+        const fh = rowH - 12;
+
+        const isSelected = (this.selectedState === st.id && this.selectedFrameIdx === f);
+        const fAdj = this.getFrameAdj(st.id, f);
 
         ctx.save();
-        ctx.fillStyle = '#f8fafc';
+        ctx.fillStyle = isSelected ? '#fffbeb' : '#f8fafc';
         ctx.beginPath();
         ctx.roundRect(fx, fy, fw, fh, 8);
         ctx.fill();
+
+        // Viền khi chọn
+        if (isSelected) {
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        // Đường mốc đất chuẩn
+        const groundY = fy + fh - 16;
         ctx.strokeStyle = '#e2e8f0';
         ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(fx + 6, groundY);
+        ctx.lineTo(fx + fw - 6, groundY);
         ctx.stroke();
+        ctx.setLineDash([]);
 
         if (sheet.complete && sheet.naturalWidth > 0) {
-          const fScale = Math.min((fh - 30) / st.frameH, (fw - 12) / st.frameW);
-          const fDrawW = st.frameW * fScale;
-          const fDrawH = st.frameH * fScale;
+          const baseScale = Math.min((fh - 32) / st.frameH, (fw - 12) / st.frameW);
+          const currentScale = baseScale * fAdj.scale;
+          const fDrawW = st.frameW * currentScale;
+          const fDrawH = st.frameH * currentScale;
+
+          const centerX = fx + fw / 2 + fAdj.offsetX;
+          const bottomY = groundY + fAdj.offsetY;
 
           ctx.save();
-          ctx.translate(fx + fw / 2, fy + fh - 18);
+          ctx.translate(centerX, bottomY);
 
           // Bóng đổ nhỏ
-          ctx.fillStyle = 'rgba(0,0,0,0.08)';
+          ctx.fillStyle = 'rgba(0,0,0,0.1)';
           ctx.beginPath();
-          ctx.ellipse(0, 0, fDrawW * 0.35, 3, 0, 0, Math.PI * 2);
+          ctx.ellipse(0, 0, fDrawW * 0.32, 3, 0, 0, Math.PI * 2);
           ctx.fill();
 
           if (this.beSinhFacing < 0) {
@@ -613,17 +777,143 @@ export class StudioRenderer {
             f * st.frameW, 0, st.frameW, st.frameH,
             -fDrawW / 2, -fDrawH, fDrawW, fDrawH
           );
+
+          // Nếu đang chọn: Vẽ 4 góc tay nắm co kéo (Corner Resize Handles)
+          if (isSelected) {
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(-fDrawW / 2, -fDrawH, fDrawW, fDrawH);
+
+            // 4 Corner Handles
+            ctx.fillStyle = '#f59e0b';
+            const handleSize = 6;
+            ctx.fillRect(-fDrawW / 2 - handleSize / 2, -fDrawH - handleSize / 2, handleSize, handleSize);
+            ctx.fillRect(fDrawW / 2 - handleSize / 2, -fDrawH - handleSize / 2, handleSize, handleSize);
+            ctx.fillRect(-fDrawW / 2 - handleSize / 2, -handleSize / 2, handleSize, handleSize);
+            ctx.fillRect(fDrawW / 2 - handleSize / 2, -handleSize / 2, handleSize, handleSize);
+
+            // Tâm điểm dịch chuyển (Center Crosshair)
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(0, -fDrawH / 2, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
           ctx.restore();
         }
 
-        // Nhãn Frame
-        ctx.fillStyle = '#64748b';
-        ctx.font = 'bold 9.5px Outfit, sans-serif';
+        // Nhãn Frame & Thông số
+        ctx.fillStyle = isSelected ? '#b45309' : '#64748b';
+        ctx.font = isSelected ? 'bold 10px Outfit, sans-serif' : '500 9.5px Outfit, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`Frame ${f + 1}`, fx + fw / 2, fy + fh - 4);
+        const labelText = isSelected
+          ? `F${f + 1} (${Math.round(fAdj.scale * 100)}%)`
+          : `Frame ${f + 1}`;
+        ctx.fillText(labelText, fx + fw / 2, fy + fh - 3);
+
         ctx.restore();
+
+        // Click target để chọn frame
+        this.studioClickTargets.push({
+          x: fx,
+          y: fy,
+          w: fw,
+          h: fh,
+          type: 'frame_select',
+          data: { state: st.id, frameIdx: f }
+        });
       }
     });
+  }
+
+  /**
+   * VẼ CÁC ĐƯỜNG THƯỚC GIÓNG KÉO THẢ (DRAGGABLE HORIZONTAL & VERTICAL RULERS)
+   */
+  private renderDraggableGuides(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+    this.guideLines.forEach(g => {
+      ctx.save();
+      ctx.strokeStyle = g.color;
+      ctx.lineWidth = (this.draggingGuideId === g.id) ? 2.5 : 1.5;
+      ctx.setLineDash([6, 4]);
+
+      if (g.type === 'h') {
+        // Đường gióng ngang
+        ctx.beginPath();
+        ctx.moveTo(0, g.pos);
+        ctx.lineTo(width, g.pos);
+        ctx.stroke();
+
+        // Thẻ Handle bên trái & phải
+        const handleW = 105;
+        const handleH = 20;
+
+        ctx.setLineDash([]);
+        ctx.fillStyle = g.color;
+        ctx.beginPath();
+        ctx.roundRect(8, g.pos - handleH / 2, handleW, handleH, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 9.5px Outfit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`↕ ${g.label}: ${Math.round(g.pos)}px`, 8 + handleW / 2, g.pos + 3.5);
+
+        this.studioClickTargets.push({
+          x: 0,
+          y: g.pos - 8,
+          w: width,
+          h: 16,
+          type: 'guide_handle',
+          data: { guideId: g.id, type: 'h' }
+        });
+      } else {
+        // Đường gióng dọc
+        ctx.beginPath();
+        ctx.moveTo(g.pos, 95);
+        ctx.lineTo(g.pos, height);
+        ctx.stroke();
+
+        // Thẻ Handle ở đỉnh
+        const handleW = 100;
+        const handleH = 18;
+
+        ctx.setLineDash([]);
+        ctx.fillStyle = g.color;
+        ctx.beginPath();
+        ctx.roundRect(g.pos - handleW / 2, 95, handleW, handleH, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 9px Outfit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`↔ ${g.label}: ${Math.round(g.pos)}px`, g.pos, 107.5);
+
+        this.studioClickTargets.push({
+          x: g.pos - 8,
+          y: 95,
+          w: 16,
+          h: height - 95,
+          type: 'guide_handle',
+          data: { guideId: g.id, type: 'v' }
+        });
+      }
+
+      ctx.restore();
+    });
+  }
+
+  private drawSmallBtn(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, text: string, bg: string, textCol: string = '#ffffff'): void {
+    ctx.save();
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 6);
+    ctx.fill();
+
+    ctx.fillStyle = textCol;
+    ctx.font = 'bold 11px Outfit, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x + w / 2, y + h / 2 + 3.5);
+    ctx.restore();
   }
 
   /**
@@ -990,12 +1280,34 @@ export class StudioRenderer {
           clickY >= target.y && clickY <= target.y + target.h) {
         if (target.type === 'tab') {
           this.currentTab = target.data.tab;
+        } else if (target.type === 'frame_select') {
+          this.selectedState = target.data.state;
+          this.selectedFrameIdx = target.data.frameIdx;
+          const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
+          this.engine.showToast(`🎯 Đang chọn: ${this.selectedState.toUpperCase()} - Frame ${this.selectedFrameIdx + 1} (Tỷ lệ: ${Math.round(adj.scale * 100)}%)`);
+        } else if (target.type === 'adjust_btn') {
+          const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
+          if (target.data.action === 'scale') {
+            adj.scale = Math.max(0.4, Math.min(2.5, Math.round((adj.scale + target.data.delta) * 100) / 100));
+            this.engine.showToast(`🔍 Tỷ lệ F${this.selectedFrameIdx + 1}: ${Math.round(adj.scale * 100)}%`);
+          } else if (target.data.action === 'move') {
+            adj.offsetX += target.data.dx;
+            adj.offsetY += target.data.dy;
+          } else if (target.data.action === 'reset_frame') {
+            adj.scale = 1.0;
+            adj.offsetX = 0;
+            adj.offsetY = 0;
+            this.engine.showToast(`🔄 Đã đặt lại Frame ${this.selectedFrameIdx + 1}`);
+          }
+          this.saveAdjustments();
         } else if (target.type === 'tool') {
           if (target.data.action === 'toggle_flower_mode') {
             this.flowerDisplayMode = this.flowerDisplayMode === 'single' ? 'full' : 'single';
             this.engine.showToast(this.flowerDisplayMode === 'single' ? '🌿 Đang xem: Từng Bụi Hoa Lẻ' : '💐 Đang xem: Cả Dải Hoa Đầy Đủ');
           } else if (target.data.action === 'flip_be_sinh') {
             this.beSinhFacing = -this.beSinhFacing;
+          } else if (target.data.action === 'export_calibrated_sheet') {
+            this.exportCalibratedSheet(target.data.state, target.data.sheetUrl, target.data.totalFrames, target.data.frameW, target.data.frameH);
           }
         } else if (target.type === 'kien_thin') {
           if (target.data.action === 'flip') {
@@ -1017,7 +1329,100 @@ export class StudioRenderer {
     }
   }
 
+  public handleMouseDown(mx: number, my: number): void {
+    // 1. Kiểm tra bấm vào thước gióng ngang/dọc
+    for (const g of this.guideLines) {
+      if (g.type === 'h' && Math.abs(my - g.pos) <= 10) {
+        this.draggingGuideId = g.id;
+        this.dragStartY = my;
+        return;
+      }
+      if (g.type === 'v' && Math.abs(mx - g.pos) <= 10) {
+        this.draggingGuideId = g.id;
+        this.dragStartX = mx;
+        return;
+      }
+    }
+
+    // 2. Kiểm tra bấm vào Frame đang chọn để kéo dịch chuyển hoặc co kéo kích thước
+    for (const target of this.studioClickTargets) {
+      if (target.type === 'frame_select' &&
+          target.data.state === this.selectedState &&
+          target.data.frameIdx === this.selectedFrameIdx &&
+          mx >= target.x && mx <= target.x + target.w &&
+          my >= target.y && my <= target.y + target.h) {
+        
+        const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
+        this.dragStartX = mx;
+        this.dragStartY = my;
+        this.initialOffsetX = adj.offsetX;
+        this.initialOffsetY = adj.offsetY;
+        this.initialScale = adj.scale;
+
+        // Nếu bấm gần 4 góc (15px) ➔ Co kéo resize
+        const isNearCorner = (
+          (Math.abs(mx - target.x) < 22 || Math.abs(mx - (target.x + target.w)) < 22) &&
+          (Math.abs(my - target.y) < 22 || Math.abs(my - (target.y + target.h)) < 22)
+        );
+
+        if (isNearCorner) {
+          this.isResizingFrame = true;
+        } else {
+          this.isDraggingFrame = true;
+        }
+        return;
+      }
+    }
+  }
+
   public handleMouseMove(mx: number, my: number, canvas: HTMLCanvasElement): void {
+    // 1. Đang kéo thước gióng
+    if (this.draggingGuideId) {
+      const g = this.guideLines.find(line => line.id === this.draggingGuideId);
+      if (g) {
+        if (g.type === 'h') {
+          g.pos = Math.max(80, Math.min(canvas.height - 20, my));
+          canvas.style.cursor = 'ns-resize';
+        } else {
+          g.pos = Math.max(40, Math.min(canvas.width - 40, mx));
+          canvas.style.cursor = 'ew-resize';
+        }
+      }
+      return;
+    }
+
+    // 2. Đang kéo dịch chuyển Frame
+    if (this.isDraggingFrame) {
+      const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
+      adj.offsetX = this.initialOffsetX + Math.round(mx - this.dragStartX);
+      adj.offsetY = this.initialOffsetY + Math.round(my - this.dragStartY);
+      canvas.style.cursor = 'move';
+      return;
+    }
+
+    // 3. Đang co kéo Resize Frame
+    if (this.isResizingFrame) {
+      const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
+      const dy = this.dragStartY - my;
+      const dx = mx - this.dragStartX;
+      const delta = (Math.abs(dy) > Math.abs(dx) ? dy : dx) * 0.01;
+      adj.scale = Math.max(0.4, Math.min(2.5, Math.round((this.initialScale + delta) * 100) / 100));
+      canvas.style.cursor = 'nwse-resize';
+      return;
+    }
+
+    // 4. Hover trạng thái thông thường
+    for (const g of this.guideLines) {
+      if (g.type === 'h' && Math.abs(my - g.pos) <= 8) {
+        canvas.style.cursor = 'ns-resize';
+        return;
+      }
+      if (g.type === 'v' && Math.abs(mx - g.pos) <= 8 && my >= 95) {
+        canvas.style.cursor = 'ew-resize';
+        return;
+      }
+    }
+
     let isHover = false;
     for (const target of this.studioClickTargets) {
       if (mx >= target.x && mx <= target.x + target.w &&
@@ -1027,6 +1432,80 @@ export class StudioRenderer {
       }
     }
     canvas.style.cursor = isHover ? 'pointer' : 'default';
+  }
+
+  public handleMouseUp(): void {
+    if (this.isDraggingFrame || this.isResizingFrame || this.draggingGuideId) {
+      this.saveAdjustments();
+    }
+    this.draggingGuideId = null;
+    this.isDraggingFrame = false;
+    this.isResizingFrame = false;
+  }
+
+  public handleWheel(mx: number, my: number, deltaY: number): void {
+    for (const target of this.studioClickTargets) {
+      if (target.type === 'frame_select' &&
+          mx >= target.x && mx <= target.x + target.w &&
+          my >= target.y && my <= target.y + target.h) {
+        this.selectedState = target.data.state;
+        this.selectedFrameIdx = target.data.frameIdx;
+        const adj = this.getFrameAdj(this.selectedState, this.selectedFrameIdx);
+        const step = deltaY < 0 ? 0.02 : -0.02;
+        adj.scale = Math.max(0.4, Math.min(2.5, Math.round((adj.scale + step) * 100) / 100));
+        this.saveAdjustments();
+        this.engine.showToast(`🔍 Zoom F${this.selectedFrameIdx + 1}: ${Math.round(adj.scale * 100)}%`);
+        break;
+      }
+    }
+  }
+
+  public exportCalibratedSheet(
+    state: 'idle' | 'walk' | 'run',
+    sheetUrl: string,
+    totalFrames: number,
+    frameW: number,
+    frameH: number
+  ): void {
+    const img = AssetLoader.getImage(sheetUrl);
+    if (!img.complete || img.naturalWidth === 0) {
+      this.engine.showToast('⚠️ Đang tải ảnh spritesheet, vui lòng thử lại...');
+      return;
+    }
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = frameW * totalFrames;
+    outCanvas.height = frameH;
+    const outCtx = outCanvas.getContext('2d');
+    if (!outCtx) return;
+
+    outCtx.clearRect(0, 0, outCanvas.width, outCanvas.height);
+
+    for (let f = 0; f < totalFrames; f++) {
+      const adj = this.getFrameAdj(state, f);
+      const slotX = f * frameW;
+      const centerX = slotX + frameW / 2 + adj.offsetX;
+      const groundY = frameH - 12 + adj.offsetY;
+
+      const drawW = frameW * adj.scale;
+      const drawH = frameH * adj.scale;
+
+      outCtx.save();
+      outCtx.translate(centerX, groundY);
+      outCtx.drawImage(
+        img,
+        f * frameW, 0, frameW, frameH,
+        -drawW / 2, -drawH, drawW, drawH
+      );
+      outCtx.restore();
+    }
+
+    const filename = `be_sinh_${state}_calibrated_${Date.now()}.png`;
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = outCanvas.toDataURL('image/png');
+    link.click();
+    this.engine.showToast(`💾 Đã xuất Spritesheet đã căn chỉnh: ${filename}`);
   }
 
   public captureBuffaloSnapshot(state: 'idle' | 'walk' | 'graze', facing: number, name: string): void {
