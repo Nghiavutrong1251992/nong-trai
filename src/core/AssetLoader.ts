@@ -121,9 +121,11 @@ export class AssetLoader {
     { key: 'player_water', src: '/assets/characters/player/water.png', isCore: false },
     { key: 'player_harvest', src: '/assets/characters/player/harvest.png', isCore: false },
 
-    // Cò cất cánh & sà xuống
+    // Cò cất cánh, sà xuống, rình mồi & ăn cá
     { key: 'stork_takeoff', src: '/assets/characters/stork/stork_takeoff_custom.png', isCore: false },
     { key: 'stork_landing', src: '/assets/characters/stork/stork_landing_custom.png', isCore: false },
+    { key: 'stork_stalk', src: '/assets/characters/stork/stork_stalk_custom.png', isCore: false },
+    { key: 'stork_eat', src: '/assets/characters/stork/stork_eat_custom.png', isCore: false },
 
     // Bò & các đối tượng phụ
     { key: 'cow_walk', src: '/assets/characters/cow/cow_walk_custom.png', isCore: false },

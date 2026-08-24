@@ -39,7 +39,7 @@ export class Engine {
   public hen = new Hen(880, 480);
   public rooster = new Rooster(940, 480);
   public pig = new Pig(1020, 480);
-  public stork = new Stork(1250, 480);
+  public stork = new Stork(3450, 484);
   public beSinh = new BeSinh(2450, 480);
   public cow = new Cow(960, 480);
   public vegetableGirl = new VegetableGirl(820, 480);
