@@ -16,7 +16,7 @@ import { BambooGrove } from './BambooGrove';
 import { BananaTree } from './BananaTree';
 import { FishPond } from './FishPond';
 import { VillageHouse } from '../scenery/VillageHouse';
-
+import { ToolRack } from '../scenery/ToolRack';
 export class FloraManager {
   public ground = new GroundPlatform();
   public wildGrass = new WildGrass();
@@ -26,6 +26,7 @@ export class FloraManager {
   public banana = new BananaTree();
   public fishPond = new FishPond();
   public house = new VillageHouse();
+  public toolRack = new ToolRack();
 
   public mapWidth = 4200; // Mở rộng 4200m (Thêm 7 phân đoạn Lũy Tre Làng)
   public paddyStartX = 3200; // Ruộng Lúa Nước (3200m -> 4000m)
@@ -34,8 +35,8 @@ export class FloraManager {
   constructor() {
     // 1. Cụm Đại Lũy Tre Làng 9 Phân Đoạn (800m -> 2600m) đã được khởi tạo trong BambooGrove
 
-    // 2. Vùng Đồng Cỏ Hoa Làng Quê
-    this.wildGrass.initFlowers(-400, 4200);
+    // 2. Vùng Đồng Cỏ Hoa Làng Quê Mở Rộng Sang Phía Tây (-1200m -> 4200m)
+    this.wildGrass.initFlowers(-1200, 4200);
 
     // 3. Các cây chuối cuối lũy tre & trên đỉnh đồi cỏ
     this.banana.instances = [
@@ -49,10 +50,11 @@ export class FloraManager {
     this.riceCrop.initRiceField(this.paddyStartX, this.paddyEndX);
   }
 
-  public update(dt: number, groundY: number = 480): void {
+  public update(dt: number, groundY: number = 480, playerX?: number, playerVx: number = 0): void {
     this.riceCrop.update(dt);
     this.fishPond.update(dt, groundY);
     this.house.update(dt, groundY);
+    this.toolRack.update(dt, playerX, playerVx);
   }
 
   public renderBackgroundTrees(
@@ -63,10 +65,13 @@ export class FloraManager {
     cameraX: number = 0,
     screenW: number = 1400
   ): void {
-    // 1. Vẽ Ngôi Nhà Mái Ngói Đỏ 3 Gian tại Đoạn 12 - 14 (Hậu cảnh ấm cúng)
+    // 1. Vẽ Ngôi Nhà Mái Tranh tại Đoạn 12 - 13 (Hậu cảnh ấm cúng)
     this.house.render(ctx, groundY, animTimer, cameraX, screenW);
-    // 2. Vẽ Rặng Tre Làng và Vườn Chuối
-    this.bamboo.render(ctx, groundY, animTimer, cameraX, screenW);
+    // 2. Vẽ Giá Treo Khung Tre Đứng (Đầy đủ dụng cụ)
+    this.toolRack.render(ctx, groundY, animTimer, cameraX, screenW);
+    this.toolRack.render(ctx, groundY, animTimer, cameraX, screenW);
+    // 4. Vẽ Rặng Tre Làng và Vườn Chuối
+    this.bamboo.render(ctx, groundY, animTimer, cameraX, screenW, playerX);
     this.banana.render(ctx, groundY, animTimer, playerX);
   }
 

@@ -41,7 +41,7 @@ export interface StudioClickTarget {
   y: number;
   w: number;
   h: number;
-  type: 'tab' | 'buffalo' | 'player' | 'kien_thin' | 'tool' | 'download' | 'frame_select' | 'guide_handle' | 'adjust_btn';
+  type: 'tab' | 'buffalo' | 'player' | 'kien_thin' | 'tool' | 'download' | 'frame_select' | 'guide_handle' | 'adjust_btn' | 'tool_transform';
   data: any;
 }
 
@@ -54,6 +54,14 @@ export interface StudioHistoryState {
   selectedFrameIdx: number;
 }
 
+export interface StudioToolItem {
+  id: string;
+  name: string;
+  src: string;
+  baseW: number;
+  baseH: number;
+}
+
 export class StudioRenderer {
   public showStudioGuides: boolean = true;
   public currentTab: StudioTab = 'be_sinh';
@@ -63,6 +71,27 @@ export class StudioRenderer {
   public beSinhFacing: number = 1;
   public flowerDisplayMode: 'single' | 'full' = 'single';
   public animTimer: number = 0;
+
+  // Tools Transformation Studio Workspace
+  public toolItems: StudioToolItem[] = [
+    { id: 'gia_treo_dung', name: 'Giá Treo Khung Tre Đứng', src: '/assets/props/dung_cu/gia_treo_day_du_dung_cu.png', baseW: 380, baseH: 295 },
+    { id: 'sao_tre_tuong', name: 'Sào Tre Treo Tường', src: '/assets/props/dung_cu/sao_tre_treo_tuong_co_dung_cu.png', baseW: 420, baseH: 140 },
+    { id: 'don_ganh', name: 'Đòn Gánh & Quang Thúng', src: '/assets/props/dung_cu/05_don_ganh_quang_thung.png', baseW: 240, baseH: 172 },
+    { id: 'nia_met', name: 'Nia / Mẹt Tre Phơi Thóc', src: '/assets/props/dung_cu/01_nia_met.png', baseW: 220, baseH: 154 },
+    { id: 'sang_gao', name: 'Sàng Gạo Mắt Cáo', src: '/assets/props/dung_cu/03_sang_gao.png', baseW: 200, baseH: 142 },
+    { id: 'nom_ca', name: 'Nơm Bắt Cá Tre', src: '/assets/props/dung_cu/04_nom_ca.png', baseW: 160, baseH: 205 },
+    { id: 'thung_ro', name: 'Thúng / Rổ Tre', src: '/assets/props/dung_cu/02_thung_ro.png', baseW: 190, baseH: 154 },
+    { id: 'choi_rom_dai', name: 'Chổi Rơm Cán Dài', src: '/assets/props/dung_cu/08_choi_rom_dai.png', baseW: 140, baseH: 167 },
+    { id: 'hot_rac', name: 'Cái Hót Rác Tre', src: '/assets/props/dung_cu/07_hot_rac_tre.png', baseW: 160, baseH: 171 },
+    { id: 'choi_rom_ngan', name: 'Chổi Rơm Ngắn', src: '/assets/props/dung_cu/06_choi_rom_ngan.png', baseW: 140, baseH: 175 }
+  ];
+
+  public selectedToolId: string = 'gia_treo_dung';
+  public toolRotation: number = 0; // -180° đến 180° hoặc 0° đến 360°
+  public toolFlipX: boolean = false;
+  public toolFlipY: boolean = false;
+  public toolScale: number = 1.0;
+  public toolSkewX: number = 0; // -45° đến 45°
 
   // History Stack for Undo / Redo [Ctrl+Z]
   public history: StudioHistoryState[] = [];
@@ -1174,42 +1203,253 @@ export class StudioRenderer {
   }
 
   private renderToolsTab(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-    const rackImg = AssetLoader.getImage('/assets/props/dung_cu/gia_treo_day_du_dung_cu.png');
-    const wallRackImg = AssetLoader.getImage('/assets/props/dung_cu/sao_tre_treo_tuong_co_dung_cu.png');
+    ctx.save();
 
+    // 1. TIÊU ĐỀ
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 15px Outfit, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('🎋 BỘ GIÁ TREO TRE & 8 DỤNG CỤ TRUYỀN THỐNG:', width / 2, 90);
+    ctx.fillText('🎋 STUDIO XOAY & CĂN CHỈNH GÓC DỤNG CỤ NÔNG THÔN 2D:', width / 2, 106);
 
-    const midX = width / 2;
-    const rackY = 400;
+    // 2. DẢI NÚT CHỌN 10 VẬT PHẨM NÔNG CỤ
+    const itemBtnW = 148;
+    const itemBtnH = 26;
+    const itemGap = 6;
+    const itemsPerRow = Math.min(5, Math.floor((width - 40) / (itemBtnW + itemGap)));
+    const totalRowW = itemsPerRow * (itemBtnW + itemGap) - itemGap;
+    const startItemX = (width - totalRowW) / 2;
 
-    if (rackImg.complete && rackImg.naturalWidth > 0) {
-      const rH = 260;
-      const rScale = rH / rackImg.naturalHeight;
-      const rW = rackImg.naturalWidth * rScale;
+    this.toolItems.forEach((tool, idx) => {
+      const row = Math.floor(idx / itemsPerRow);
+      const col = idx % itemsPerRow;
+      const bx = startItemX + col * (itemBtnW + itemGap);
+      const by = 120 + row * (itemBtnH + 6);
+      const isSelected = this.selectedToolId === tool.id;
 
-      ctx.drawImage(rackImg, midX - rW - 30, rackY - rH, rW, rH);
+      ctx.fillStyle = isSelected ? '#0284c7' : '#e2e8f0';
+      ctx.beginPath();
+      ctx.roundRect(bx, by, itemBtnW, itemBtnH, 8);
+      ctx.fill();
 
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 12px Outfit, sans-serif';
+      ctx.strokeStyle = isSelected ? '#38bdf8' : 'rgba(15, 23, 42, 0.15)';
+      ctx.lineWidth = isSelected ? 2 : 1;
+      ctx.stroke();
+
+      ctx.fillStyle = isSelected ? '#ffffff' : '#1e293b';
+      ctx.font = isSelected ? 'bold 11px Outfit, sans-serif' : '500 11px Outfit, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Giá Treo Khung Tre Đứng (Đầy Đủ Dụng Cụ)', midX - rW / 2 - 30, rackY + 20);
+      ctx.fillText(tool.name, bx + itemBtnW / 2, by + 17);
+
+      this.studioClickTargets.push({
+        x: bx, y: by, w: itemBtnW, h: itemBtnH,
+        type: 'tool_transform',
+        data: { action: 'select_tool', toolId: tool.id, name: tool.name }
+      });
+    });
+
+    const activeTool = this.toolItems.find(t => t.id === this.selectedToolId) || this.toolItems[0];
+    const img = AssetLoader.getImage(activeTool.src);
+
+    // 3. KHU VỰC SÂN KHẤU PREVIEW (Interactive Canvas Stage)
+    const stageW = Math.min(580, width - 80);
+    const stageH = 310;
+    const stageX = (width - stageW) / 2;
+    const stageY = 190;
+
+    // Nền sân khấu
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(stageX, stageY, stageW, stageH, 14);
+    ctx.fill();
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Lưới tọa độ nhẹ
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1;
+    for (let gx = stageX + 30; gx < stageX + stageW; gx += 30) {
+      ctx.beginPath();
+      ctx.moveTo(gx, stageY);
+      ctx.lineTo(gx, stageY + stageH);
+      ctx.stroke();
+    }
+    for (let gy = stageY + 30; gy < stageY + stageH; gy += 30) {
+      ctx.beginPath();
+      ctx.moveTo(stageX, gy);
+      ctx.lineTo(stageX + stageW, gy);
+      ctx.stroke();
     }
 
-    if (wallRackImg.complete && wallRackImg.naturalWidth > 0) {
-      const wH = 120;
-      const wScale = wH / wallRackImg.naturalHeight;
-      const wW = wallRackImg.naturalWidth * wScale;
+    // Tâm sân khấu
+    const centerX = stageX + stageW / 2;
+    const centerY = stageY + stageH / 2;
 
-      ctx.drawImage(wallRackImg, midX + 30, rackY - 200, wW, wH);
+    // Trục chữ thập tâm
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(stageX, centerY);
+    ctx.lineTo(stageX + stageW, centerY);
+    ctx.moveTo(centerX, stageY);
+    ctx.lineTo(centerX, stageY + stageH);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-      ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 12px Outfit, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Sào Tre Treo Tường Gắn Móc', midX + wW / 2 + 30, rackY - 60);
+    // 4. VẼ VẬT PHẨM VỚI CÁC PHÉP BIẾN ĐỔI 2D (Rotation, Scale, Flip, Skew)
+    if (img.complete && img.naturalWidth > 0) {
+      ctx.save();
+      ctx.translate(centerX, centerY);
+
+      // A. Xoay góc (Rotation)
+      ctx.rotate((this.toolRotation * Math.PI) / 180);
+
+      // B. Kéo xiên độ dốc (Skew)
+      if (this.toolSkewX !== 0) {
+        ctx.transform(1, 0, Math.tan((this.toolSkewX * Math.PI) / 180), 1, 0, 0);
+      }
+
+      // C. Lật gương & Phóng to thu nhỏ (Flip & Scale)
+      const scaleFactorX = (this.toolFlipX ? -1 : 1) * this.toolScale;
+      const scaleFactorY = (this.toolFlipY ? -1 : 1) * this.toolScale;
+      ctx.scale(scaleFactorX, scaleFactorY);
+
+      // Kích thước hiển thị
+      const drawW = activeTool.baseW * 0.75;
+      const drawH = activeTool.baseH * 0.75;
+
+      // Bóng đổ
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.12)';
+      ctx.beginPath();
+      ctx.ellipse(0, drawH / 2 + 4, drawW * 0.45, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Vẽ hình ảnh
+      ctx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+
+      // Khung bounding box đứt nét minh họa
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([3, 3]);
+      ctx.strokeRect(-drawW / 2 - 2, -drawH / 2 - 2, drawW + 4, drawH + 4);
+      ctx.restore();
     }
+
+    // Tâm điểm đỏ
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Badge thông số biến đổi thời gian thực
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 12px Outfit, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(
+      `📐 Góc: ${this.toolRotation}°  •  ↔ Lật Ngang: ${this.toolFlipX ? 'BẬT' : 'TẮT'}  •  ↕ Lật Dọc: ${this.toolFlipY ? 'BẬT' : 'TẮT'}  •  ∡ Xiên: ${this.toolSkewX}°  •  🔍 Zoom: ${Math.round(this.toolScale * 100)}%`,
+      centerX,
+      stageY + stageH - 12
+    );
+
+    // 5. BẢNG NÚT ĐIỀU KHIỂN TƯƠNG TÁC (CONTROL PANEL)
+    const ctrlY = stageY + stageH + 14;
+
+    // Hàng 1: Xoay góc (Rotation Controls)
+    const rotBtns = [
+      { label: '↺ -45°', action: 'rotate', delta: -45 },
+      { label: '↺ -15°', action: 'rotate', delta: -15 },
+      { label: '↺ -5°', action: 'rotate', delta: -5 },
+      { label: '0° Gốc', action: 'set_rotate', val: 0 },
+      { label: '+5° ↻', action: 'rotate', delta: 5 },
+      { label: '+15° ↻', action: 'rotate', delta: 15 },
+      { label: '+45° ↻', action: 'rotate', delta: 45 },
+      { label: '90°', action: 'set_rotate', val: 90 },
+      { label: '180°', action: 'set_rotate', val: 180 },
+      { label: '270°', action: 'set_rotate', val: 270 }
+    ];
+
+    const rBtnW = 54;
+    const rBtnH = 26;
+    const rGap = 5;
+    const totalRRowW = rotBtns.length * (rBtnW + rGap) - rGap;
+    const startRX = (width - totalRRowW) / 2;
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 12px Outfit, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('🔄 Xoay Góc:', startRX - 8, ctrlY + 18);
+
+    rotBtns.forEach((btn, i) => {
+      const bx = startRX + i * (rBtnW + rGap);
+      const by = ctrlY;
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.roundRect(bx, by, rBtnW, rBtnH, 6);
+      ctx.fill();
+
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = '#0284c7';
+      ctx.font = 'bold 10.5px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(btn.label, bx + rBtnW / 2, by + 17);
+
+      this.studioClickTargets.push({
+        x: bx, y: by, w: rBtnW, h: rBtnH,
+        type: 'tool_transform',
+        data: btn
+      });
+    });
+
+    // Hàng 2: Lật gương & Kéo xiên & Thu phóng
+    const ctrl2Y = ctrlY + 34;
+    const transBtns = [
+      { label: this.toolFlipX ? '↔ Đang Lật Ngang' : '↔ Lật Ngang (Flip X)', action: 'flip_x', active: this.toolFlipX },
+      { label: this.toolFlipY ? '↕ Đang Lật Dọc' : '↕ Lật Dọc (Flip Y)', action: 'flip_y', active: this.toolFlipY },
+      { label: '∡ Xiên Trái -5°', action: 'skew_x', delta: -5 },
+      { label: '∡ Xiên Phải +5°', action: 'skew_x', delta: 5 },
+      { label: '∡ Reset Xiên (0°)', action: 'reset_skew' },
+      { label: '🔍 Thu Nhỏ (-10%)', action: 'scale', delta: -0.1 },
+      { label: '🔎 Phóng To (+10%)', action: 'scale', delta: 0.1 },
+      { label: '🔄 Đặt Lại Gốc', action: 'reset_all' },
+      { label: '📸 Tải Ảnh Đã Xoay', action: 'export_transformed', isExport: true }
+    ];
+
+    const tBtnW = 106;
+    const tBtnH = 26;
+    const tGap = 6;
+    const totalTRowW = transBtns.length * (tBtnW + tGap) - tGap;
+    const startTX = (width - totalTRowW) / 2;
+
+    transBtns.forEach((btn, i) => {
+      const bx = startTX + i * (tBtnW + tGap);
+      const by = ctrl2Y;
+
+      ctx.fillStyle = btn.isExport ? '#10b981' : btn.active ? '#0284c7' : '#f8fafc';
+      ctx.beginPath();
+      ctx.roundRect(bx, by, tBtnW, tBtnH, 6);
+      ctx.fill();
+
+      ctx.strokeStyle = btn.isExport ? '#059669' : btn.active ? '#0284c7' : '#cbd5e1';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = btn.isExport || btn.active ? '#ffffff' : '#0f172a';
+      ctx.font = 'bold 10.5px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(btn.label, bx + tBtnW / 2, by + 17);
+
+      this.studioClickTargets.push({
+        x: bx, y: by, w: tBtnW, h: tBtnH,
+        type: 'tool_transform',
+        data: btn
+      });
+    });
+
+    ctx.restore();
   }
 
   public handleClick(clickX: number, clickY: number): void {
@@ -1288,6 +1528,42 @@ export class StudioRenderer {
           a.download = target.data.filename;
           a.click();
           this.showToast(`⬇ Đang tải file: ${target.data.filename}`);
+        } else if (target.type === 'tool_transform') {
+          if (target.data.action === 'select_tool') {
+            this.selectedToolId = target.data.toolId;
+            this.showToast(`🎋 Đã chọn: ${target.data.name}`);
+          } else if (target.data.action === 'rotate') {
+            this.toolRotation = (this.toolRotation + target.data.delta) % 360;
+            if (this.toolRotation < 0) this.toolRotation += 360;
+            this.showToast(`📐 Góc Xoay: ${this.toolRotation}°`);
+          } else if (target.data.action === 'set_rotate') {
+            this.toolRotation = target.data.val;
+            this.showToast(`📐 Đặt Góc: ${this.toolRotation}°`);
+          } else if (target.data.action === 'flip_x') {
+            this.toolFlipX = !this.toolFlipX;
+            this.showToast(`↔ Lật Ngang (Flip X): ${this.toolFlipX ? 'BẬT' : 'TẮT'}`);
+          } else if (target.data.action === 'flip_y') {
+            this.toolFlipY = !this.toolFlipY;
+            this.showToast(`↕ Lật Dọc (Flip Y): ${this.toolFlipY ? 'BẬT' : 'TẮT'}`);
+          } else if (target.data.action === 'skew_x') {
+            this.toolSkewX = Math.max(-45, Math.min(45, this.toolSkewX + target.data.delta));
+            this.showToast(`∡ Độ Xiên: ${this.toolSkewX}°`);
+          } else if (target.data.action === 'reset_skew') {
+            this.toolSkewX = 0;
+            this.showToast('∡ Đã đặt lại độ xiên (0°)');
+          } else if (target.data.action === 'scale') {
+            this.toolScale = Math.max(0.3, Math.min(3.0, Math.round((this.toolScale + target.data.delta) * 100) / 100));
+            this.showToast(`🔍 Kích Thước: ${Math.round(this.toolScale * 100)}%`);
+          } else if (target.data.action === 'reset_all') {
+            this.toolRotation = 0;
+            this.toolFlipX = false;
+            this.toolFlipY = false;
+            this.toolScale = 1.0;
+            this.toolSkewX = 0;
+            this.showToast('🔄 Đã đặt lại toàn bộ góc & phép biến đổi về mặc định!');
+          } else if (target.data.action === 'export_transformed') {
+            this.exportTransformedTool();
+          }
         } else if (target.type === 'buffalo') {
           this.captureBuffaloSnapshot(target.data.state, target.data.facing, target.data.name);
         } else if (target.type === 'player') {
@@ -1588,5 +1864,42 @@ export class StudioRenderer {
     link.click();
 
     this.showToast(`📸 Đã chụp & tải về ảnh nhân vật: ${filename}`);
+  }
+
+  public exportTransformedTool(): void {
+    const tool = this.toolItems.find(t => t.id === this.selectedToolId);
+    if (!tool) return;
+
+    const img = AssetLoader.getImage(tool.src);
+    if (!img.complete || img.naturalWidth <= 0) return;
+
+    const offW = Math.round(tool.baseW * 2);
+    const offH = Math.round(tool.baseH * 2);
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = offW;
+    offCanvas.height = offH;
+    const offCtx = offCanvas.getContext('2d');
+    if (!offCtx) return;
+
+    offCtx.clearRect(0, 0, offW, offH);
+    offCtx.save();
+    offCtx.translate(offW / 2, offH / 2);
+    offCtx.rotate((this.toolRotation * Math.PI) / 180);
+    if (this.toolSkewX !== 0) {
+      offCtx.transform(1, 0, Math.tan((this.toolSkewX * Math.PI) / 180), 1, 0, 0);
+    }
+    const scaleFactorX = (this.toolFlipX ? -1 : 1) * this.toolScale;
+    const scaleFactorY = (this.toolFlipY ? -1 : 1) * this.toolScale;
+    offCtx.scale(scaleFactorX, scaleFactorY);
+    offCtx.drawImage(img, -tool.baseW / 2, -tool.baseH / 2, tool.baseW, tool.baseH);
+    offCtx.restore();
+
+    const filename = `dung_cu_${tool.id}_rot${this.toolRotation}_flipX${this.toolFlipX ? 1 : 0}.png`;
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = offCanvas.toDataURL('image/png');
+    link.click();
+
+    this.showToast(`📸 Đã chụp & tải về ảnh PNG trong suốt: ${filename}`);
   }
 }

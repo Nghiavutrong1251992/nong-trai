@@ -227,8 +227,8 @@ export class Player {
       }
     }
 
-    // 6. Giới hạn nhân vật không bị văng ra khỏi biên bản đồ (-380m -> 4180m)
-    this.x = Math.max(-380, Math.min(4180, this.x));
+    // 6. Giới hạn nhân vật không bị văng ra khỏi biên bản đồ mở rộng (-1180m -> 4180m)
+    this.x = Math.max(-1180, Math.min(4180, this.x));
   }
 
 

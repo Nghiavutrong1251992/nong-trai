@@ -54,9 +54,10 @@ export class BambooGrove {
   private initBambooInstances(): void {
     this.instances = [];
 
-    // Tạo các cụm bụi tre tự nhiên dọc theo đường làng, uốn lượn và ôm quanh ngôi nhà ngói đỏ tại Đoạn 12-14
+    // Tạo các cụm bụi tre tự nhiên dọc theo đường làng (Đoạn 5 -> Đoạn 9: 800m -> 1700m)
+    // Toàn bộ Đoạn 11 -> Đoạn 15 hoàn toàn sạch bóng tre để không gian làng quê và ngôi nhà thoáng đãng
     const clusterCenters = [
-      860, 1060, 1260, 1460, 1660, 1840, 2280, 2480
+      860, 1060, 1260, 1460, 1660
     ];
 
 
@@ -180,7 +181,8 @@ export class BambooGrove {
     groundY: number,
     animTimer: number,
     cameraX: number = 0,
-    viewportW: number = 1400
+    viewportW: number = 1400,
+    playerX?: number
   ): void {
     const minViewX = cameraX - 140;
     const maxViewX = cameraX + viewportW + 140;

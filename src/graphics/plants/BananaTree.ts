@@ -115,7 +115,7 @@ export class BananaTree {
       const currentGroundY = GroundPlatform.getGroundY(inst.x, groundY);
       const isDug = inst.isBeingDug;
       
-      // Khi đang bị cuốc đào, cây chuối rung lắc mạnh tạo cảm giác chân thực
+      // Khi đang bị cuốc đào, cây chuối rung lắc mạnh. Bình thường chỉ đung đưa nhẹ theo làn gió thoảng
       const sway = isDug
         ? Math.sin(animTimer * 24) * 0.065
         : Math.sin(animTimer * 1.3 + inst.phase) * 0.022;
