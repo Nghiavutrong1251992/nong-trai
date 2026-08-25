@@ -14,6 +14,8 @@ import { BananaInstance } from '../graphics/plants/BananaTree';
 export interface InputState {
   left: boolean;
   right: boolean;
+  up: boolean;
+  down: boolean;
   jump: boolean;
   hoe: boolean;
   fish: boolean;
@@ -23,6 +25,8 @@ export class InputController {
   public input: InputState = {
     left: false,
     right: false,
+    up: false,
+    down: false,
     jump: false,
     hoe: false,
     fish: false
@@ -62,6 +66,27 @@ export class InputController {
       });
     }
 
+    // Map Mode Toggle Button
+    document.getElementById('btn-toggle-map')?.addEventListener('click', () => {
+      this.engine.toggleMapMode();
+      const btn = document.getElementById('btn-toggle-map');
+      if (btn) {
+        if (this.engine.mapMode === 'map25d') {
+          btn.textContent = '🌾 Bản Đồ Đồng Quê [Tab]';
+          btn.style.color = '#fbbf24';
+          btn.style.borderColor = '#fbbf24';
+        } else {
+          btn.textContent = '🏡 Bản Đồ 2.5D [Tab]';
+          btn.style.color = '#10b981';
+          btn.style.borderColor = '#10b981';
+        }
+      }
+    });
+
+    document.getElementById('btn-toggle-boundaries')?.addEventListener('click', () => {
+      this.engine.toggleWalkableBoundaries();
+    });
+
     // Reset World
     const handleReset = () => {
       if (confirm('🔄 Bạn có chắc chắn muốn Đặt Lại Bản Đồ về trạng thái ban đầu?')) {
@@ -79,7 +104,15 @@ export class InputController {
       const k = e.key.toLowerCase();
       if (k === 'a' || k === 'arrowleft') this.input.left = true;
       if (k === 'd' || k === 'arrowright') this.input.right = true;
+      if (k === 'w' || k === 'arrowup') this.input.up = true;
+      if (k === 's' || k === 'arrowdown') this.input.down = true;
       if (k === 'w' || k === 'arrowup' || k === ' ') this.input.jump = true;
+
+      // Phím Tab: Chuyển đổi Map 1 (Side-scroll) ↔ Map 2 (2.5D Làng Quê)
+      if (k === 'tab') {
+        e.preventDefault();
+        this.engine.toggleMapMode();
+      }
 
       // Phím Q: Rút / Đổi / Cất dụng cụ
       if (k === 'q') {
@@ -123,6 +156,9 @@ export class InputController {
           btnGrid.textContent = this.engine.showMapRuler ? '📐 Thước Đo: BẬT [G]' : '📐 Thước Đo: TẮT [G]';
         }
       }
+      if (k === 'b') {
+        this.engine.toggleWalkableBoundaries();
+      }
       if (k === 't') {
         cycleTimeOfDay();
       }
@@ -147,6 +183,8 @@ export class InputController {
       const k = e.key.toLowerCase();
       if (k === 'a' || k === 'arrowleft') this.input.left = false;
       if (k === 'd' || k === 'arrowright') this.input.right = false;
+      if (k === 'w' || k === 'arrowup') this.input.up = false;
+      if (k === 's' || k === 'arrowdown') this.input.down = false;
       if (k === 'w' || k === 'arrowup' || k === ' ') this.input.jump = false;
     });
 
@@ -621,6 +659,21 @@ export class InputController {
       btnCycle.innerHTML = '🌾 Liềm Cắt [Q]';
     } else {
       btnCycle.innerHTML = '🔄 Đổi Dụng Cụ [Q]';
+    }
+
+    // Cập nhật nút Bật/Tắt Ranh Giới Vùng Đi
+    const btnBoundaries = document.getElementById('btn-toggle-boundaries');
+    if (btnBoundaries) {
+      btnBoundaries.textContent = this.engine.showWalkableBoundaries ? '🛣️ Ranh Giới: BẬT [B]' : '🛣️ Ranh Giới: TẮT [B]';
+      if (this.engine.showWalkableBoundaries) {
+        btnBoundaries.classList.add('active');
+        btnBoundaries.style.color = '#4ade80';
+        btnBoundaries.style.borderColor = '#22c55e';
+      } else {
+        btnBoundaries.classList.remove('active');
+        btnBoundaries.style.color = '#cbd5e1';
+        btnBoundaries.style.borderColor = '#94a3b8';
+      }
     }
   }
 }

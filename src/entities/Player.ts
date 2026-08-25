@@ -250,15 +250,20 @@ export class Player {
     y: number,
     state: string,
     animTimer: number,
-    facing: number = 1
+    facing: number = 1,
+    scale: number = 1.0
   ): void {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
     this.animator.render(
       ctx,
-      x,
-      y,
+      0,
+      0,
       facing,
       state,
       animTimer
     );
+    ctx.restore();
   }
 }

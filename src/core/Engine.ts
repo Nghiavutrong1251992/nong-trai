@@ -10,17 +10,18 @@
 import { SoundManager } from './SoundManager';
 import { Player } from '../entities/Player';
 import { Buffalo } from '../entities/Buffalo';
-import { Cow } from '../entities/Cow';
 import { Stork } from '../entities/Stork';
 import { Hen } from '../entities/Hen';
 import { Rooster } from '../entities/Rooster';
 import { Pig } from '../entities/Pig';
-import { VegetableGirl } from '../entities/VegetableGirl';
 import { BeSinh } from '../entities/BeSinh';
 import { FloraManager } from '../graphics/plants/FloraManager';
 import { SaveManager } from './SaveManager';
 import { InputController } from './InputController';
 import { WorldRenderer } from '../graphics/WorldRenderer';
+import { VillageMap25D } from '../world/VillageMap25D';
+import { VillageRenderer25D } from '../graphics/VillageRenderer25D';
+import { MAP_25D, WALKABLE_POLYGON, getPerspectiveScale, AnimalObstacle } from '../world/VillageMapData';
 
 import { AssetLoader } from './AssetLoader';
 
@@ -41,13 +42,15 @@ export class Engine {
   public pig = new Pig(1020, 480);
   public stork = new Stork(3450, 484);
   public beSinh = new BeSinh(2450, 480);
-  public cow = new Cow(960, 480);
-  public vegetableGirl = new VegetableGirl(820, 480);
   public floraManager = new FloraManager();
 
   // Sub-modules
   public inputController = new InputController(this);
   public worldRenderer = new WorldRenderer(this);
+
+  // 2.5D Village Map System
+  public villageMap = new VillageMap25D();
+  public villageRenderer = new VillageRenderer25D(this.villageMap);
 
   // Game States
   public groundY: number = 480;
@@ -55,11 +58,32 @@ export class Engine {
   public cameraX: number = 0;
   public mapWidth: number = 4200; // Chiều dài Bản Đồ Mở Rộng 21 Phân Đoạn (4200m)
 
+  /** Chế độ bản đồ: 'map1' = Side-scroll, 'map25d' = Làng Quê 2.5D */
+  public mapMode: 'map1' | 'map25d' = 'map25d';
+
+  /** Vị trí nhân vật trong 2.5D world space */
+  public player25dX: number = MAP_25D.WORLD_W / 2;
+  public player25dY: number = 500;
+
+  /** Đã khởi tạo vị trí thú nuôi cho map 2.5D chưa */
+  public _animals25dInit: boolean = false;
 
   public showMapRuler: boolean = true; // Bật/Tắt Lưới Thước Đo [G]
   public showAnimalLabels: boolean = false; // Bật/Tắt Phụ Đề Nhãn Tên Thú Nuôi [N] (Mặc định TẮT)
-  public showCow: boolean = false; // Ẩn / Hiện Bò Nâu (Mặc định Ẩn)
-  public showVegetableGirl: boolean = false; // Ẩn / Hiện Bé Miến Bán Rau (Mặc định Ẩn)
+  public showWalkableBoundaries: boolean = false; // Bật/Tắt Họa Đồ Ranh Giới Vùng Đi & Khung Cản [B] (Mặc định TẮT)
+
+  /**
+   * Bật/Tắt hiển thị ranh giới đa giác vùng đi được và khung cản chân [Phím B]
+   */
+  public toggleWalkableBoundaries(): void {
+    this.showWalkableBoundaries = !this.showWalkableBoundaries;
+    this.showToast(
+      this.showWalkableBoundaries
+        ? '🛣️ Đã BẬT Ranh Giới Vùng Đi & Khung Cản [B]'
+        : '✨ Đã TẮT Ranh Giới Vùng Đi & Khung Cản [B]'
+    );
+    this.inputController.updateActionButtonsUI();
+  }
 
 
   public async start(): Promise<void> {
@@ -223,8 +247,17 @@ export class Engine {
   private update(dt: number): void {
     this.animTimer += dt;
 
-    // 1. Cập nhật Bầu Trời & Hiệu ứng thời tiết
+    // 1. Cập nhật Bầu Trời & Hiệu ứng thời tiết (cả 2 mode đều dùng)
     this.worldRenderer.update(dt);
+
+    // 2. Nếu đang ở chế độ 2.5D → chạy logic 2.5D riêng
+    if (this.mapMode === 'map25d') {
+      this.update25D(dt);
+      this.inputController.updateActionButtonsUI();
+      return;
+    }
+
+    // === MAP 1: Side-scroll logic (giữ nguyên) ===
 
     // Cập nhật Player & Physics
     this.player.update(dt, this.inputController.input, this.groundY, this.sound);
@@ -263,16 +296,6 @@ export class Engine {
     // Cập nhật Bé Sinh (Đứng yên, Đi bộ, Chạy nhảy)
     this.beSinh.update(dt, this.groundY, this.player.x);
 
-    // Cập nhật Chú Bò Nâu Làng Quê (Tạm ẩn theo yêu cầu)
-    if (this.showCow) {
-      this.cow.update(dt, this.groundY);
-    }
-
-    // Cập nhật Cô Bé Bán Rau (Bé Miến) (Tạm ẩn theo yêu cầu)
-    if (this.showVegetableGirl) {
-      this.vegetableGirl.update(dt, this.groundY, this.player.x);
-    }
-
     // 2. Camera bám theo nhân vật mượt mà (Mở rộng từ -1200m bên trái ao cá)
     const targetCamX = this.player.x - this.width / 2;
     const minCamX = -1200;
@@ -287,7 +310,28 @@ export class Engine {
   private render(): void {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
-    this.renderMap1(ctx);
+
+    if (this.mapMode === 'map25d') {
+      this.renderMap25D(ctx);
+    } else {
+      this.renderMap1(ctx);
+    }
+  }
+
+  /**
+   * Chuyển đổi giữa Map 1 (Side-scroll) và Map 2 (2.5D Làng Quê)
+   */
+  public toggleMapMode(): void {
+    if (this.mapMode === 'map1') {
+      this.mapMode = 'map25d';
+      // Chuyển vị trí nhân vật sang 2.5D
+      this.player25dX = MAP_25D.WORLD_W / 2;
+      this.player25dY = 500;
+      this.showToast('🏡 Chuyển sang Bản Đồ  2.5D Làng Quê! [Tab] để quay lại');
+    } else {
+      this.mapMode = 'map1';
+      this.showToast('🌾 Quay lại Bản Đồ Đồng Quê! [Tab] để chuyển 2.5D');
+    }
   }
 
   /**
@@ -333,16 +377,6 @@ export class Engine {
     // D7. Bé Sinh Làng Quê
     this.beSinh.render(ctx, this.showAnimalLabels);
 
-    // D8. Chú Bò Nâu Làng Quê (Đã ẩn)
-    if (this.showCow) {
-      this.cow.render(ctx, this.showAnimalLabels);
-    }
-
-    // E. Cô Bé Bán Rau (Bé Miến) (Đã ẩn)
-    if (this.showVegetableGirl) {
-      this.vegetableGirl.render(ctx, this.player.x);
-    }
-
     // F. Nhân Vật Chính
     this.player.render(ctx);
 
@@ -358,7 +392,6 @@ export class Engine {
     this.worldRenderer.renderWeatherForeground(ctx, this.width, groundY);
 
     // 3. HUD Thông Số
-
     this.worldRenderer.renderHUD(
       ctx,
       this.width,
@@ -369,5 +402,261 @@ export class Engine {
       this.floraManager.riceCrop.harvestedGrains,
       this.showMapRuler
     );
+  }
+
+  /**
+   * Lấy danh sách chướng ngại vật Foot Colliders thời gian thực của các nhân vật & thú nuôi
+   */
+  public getDynamicAnimalObstacles(): AnimalObstacle[] {
+    return [
+      { id: 'con_trau', x: this.buffalo.x, y: this.buffalo.y, w: 80, h: 22 },
+      { id: 'con_heo', x: this.pig.x, y: this.pig.y, w: 48, h: 18 },
+      { id: 'ga_trong', x: this.rooster.x, y: this.rooster.y, w: 26, h: 12 },
+      { id: 'ga_mai', x: this.hen.x, y: this.hen.y, w: 24, h: 12 },
+      { id: 'con_co', x: this.stork.x, y: this.stork.y, w: 24, h: 12 },
+      { id: 'be_sinh', x: this.beSinh.x, y: this.beSinh.y, w: 26, h: 14 },
+    ];
+  }
+
+  /**
+   * MAP 2: BẢN ĐỒ LÀNG QUÊ 2.5D (Góc nhìn 2.5D, Y-sorting & Perspective scaling)
+   */
+  private renderMap25D(ctx: CanvasRenderingContext2D): void {
+    // 1. NỀN BẦU TRỜI (Layer 1: Background)
+    const skyH = this.height * 0.35;
+    this.worldRenderer.renderSky(ctx, this.width, skyH);
+
+    // Tính perspective scale của Nhân vật theo vị trí bàn chân
+    const playerScale = getPerspectiveScale(this.player25dY);
+    const dynamicObstacles = this.getDynamicAnimalObstacles();
+
+    // Mảng các con vật & nhân vật với feetY & perspective scale riêng từng con
+    const animalRenderers = [
+      {
+        feetY: this.buffalo.y,
+        render: (c: CanvasRenderingContext2D) => {
+          const s = getPerspectiveScale(this.buffalo.y);
+          c.save();
+          c.translate(this.buffalo.x, this.buffalo.y);
+          c.scale(s, s);
+          c.translate(-this.buffalo.x, -this.buffalo.y);
+          this.buffalo.render(c, this.showAnimalLabels);
+          c.restore();
+        },
+      },
+      {
+        feetY: this.pig.y,
+        render: (c: CanvasRenderingContext2D) => {
+          const s = getPerspectiveScale(this.pig.y);
+          c.save();
+          c.translate(this.pig.x, this.pig.y);
+          c.scale(s, s);
+          c.translate(-this.pig.x, -this.pig.y);
+          this.pig.render(c, this.showAnimalLabels);
+          c.restore();
+        },
+      },
+      {
+        feetY: this.hen.y,
+        render: (c: CanvasRenderingContext2D) => {
+          const s = getPerspectiveScale(this.hen.y);
+          c.save();
+          c.translate(this.hen.x, this.hen.y);
+          c.scale(s, s);
+          c.translate(-this.hen.x, -this.hen.y);
+          this.hen.render(c, this.showAnimalLabels);
+          c.restore();
+        },
+      },
+      {
+        feetY: this.rooster.y,
+        render: (c: CanvasRenderingContext2D) => {
+          const s = getPerspectiveScale(this.rooster.y);
+          c.save();
+          c.translate(this.rooster.x, this.rooster.y);
+          c.scale(s, s);
+          c.translate(-this.rooster.x, -this.rooster.y);
+          this.rooster.render(c, this.showAnimalLabels);
+          c.restore();
+        },
+      },
+      {
+        feetY: this.stork.y,
+        render: (c: CanvasRenderingContext2D) => {
+          const s = getPerspectiveScale(this.stork.y);
+          c.save();
+          c.translate(this.stork.x, this.stork.y);
+          c.scale(s, s);
+          c.translate(-this.stork.x, -this.stork.y);
+          this.stork.render(c, this.showAnimalLabels);
+          c.restore();
+        },
+      },
+      {
+        feetY: this.beSinh.y,
+        render: (c: CanvasRenderingContext2D) => {
+          const s = getPerspectiveScale(this.beSinh.y);
+          c.save();
+          c.translate(this.beSinh.x, this.beSinh.y);
+          c.scale(s, s);
+          c.translate(-this.beSinh.x, -this.beSinh.y);
+          this.beSinh.render(c, this.showAnimalLabels);
+          c.restore();
+        },
+      },
+    ];
+
+    // 2. RENDER CẢNH LÀNG QUÊ 2.5D THỰC THI 7 LỚP HÌNH ẢNH
+    this.villageRenderer.render(
+      ctx,
+      this.width,
+      this.height,
+      this.player25dY,
+      // Callback vẽ Nhân vật với scale bàn chân
+      () => {
+        this.player.renderAt(
+          ctx,
+          this.player25dX,
+          this.player25dY,
+          this.player.state,
+          this.player.animTimer,
+          this.player.facing,
+          playerScale
+        );
+      },
+      animalRenderers,
+      dynamicObstacles,
+      this.showWalkableBoundaries
+    );
+
+    // 3. HUD Thông Số (vẫn dùng lại)
+    this.worldRenderer.renderHUD(
+      ctx,
+      this.width,
+      this.height,
+      this.player25dX,
+      this.player.coins,
+      this.player.carriedBananas.length,
+      this.floraManager.riceCrop.harvestedGrains,
+      false // Không hiện thước đo trong map 2.5D
+    );
+
+    // 4. Chỉ dẫn map mode
+    ctx.save();
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+    ctx.beginPath();
+    ctx.roundRect(this.width / 2 - 120, this.height - 36, 240, 28, 8);
+    ctx.fill();
+    ctx.fillStyle = '#fde047';
+    ctx.font = 'bold 11px Outfit, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🏡 Bản Đồ 2.5D Làng Quê · [Tab] Quay lại · [WASD] Di chuyển', this.width / 2, this.height - 18);
+    ctx.restore();
+  }
+
+  /**
+   * Cập nhật nhân vật trong chế độ 2.5D (di chuyển 4 hướng)
+   */
+  private update25D(dt: number): void {
+    const input = this.inputController.input;
+    const speed = this.player.speed;
+    let vx = 0;
+    let vy = 0;
+
+    if (input.left) { vx = -speed; this.player.facing = -1; }
+    if (input.right) { vx = speed; this.player.facing = 1; }
+    if (input.up) { vy = -speed * 0.7; }    // Đi lên chậm hơn (xa camera)
+    if (input.down) { vy = speed * 0.7; }   // Đi xuống nhanh hơn (gần camera)
+
+    // Tính vị trí mới
+    const newX = this.player25dX + vx * dt;
+    const newY = this.player25dY + vy * dt;
+
+    // Kiểm tra collision với Đa giác + Chướng ngại vật tĩnh + Chướng ngại vật động tất cả con vật
+    const dynamicObstacles = this.getDynamicAnimalObstacles();
+
+    // 1. Di chuyển X (Kèm thuật toán trượt theo bờ dốc tam giác / nghiêng - Wall Sliding)
+    if (this.villageMap.canWalkTo(newX, this.player25dY, 24, dynamicObstacles)) {
+      this.player25dX = newX;
+    } else if (vx !== 0) {
+      // Khi gặp cạnh đa giác uốn dốc, thử trượt nhẹ Y để nhân vật tự động trượt mượt tiếp tục di chuyển
+      for (let slideY = 1; slideY <= 12; slideY++) {
+        if (this.villageMap.canWalkTo(newX, this.player25dY - slideY, 24, dynamicObstacles)) {
+          this.player25dX = newX;
+          this.player25dY -= Math.min(slideY, 2);
+          break;
+        }
+        if (this.villageMap.canWalkTo(newX, this.player25dY + slideY, 24, dynamicObstacles)) {
+          this.player25dX = newX;
+          this.player25dY += Math.min(slideY, 2);
+          break;
+        }
+      }
+    }
+
+    // 2. Di chuyển Y (Kèm trượt ngang X)
+    if (this.villageMap.canWalkTo(this.player25dX, newY, 24, dynamicObstacles)) {
+      this.player25dY = newY;
+    } else if (vy !== 0) {
+      for (let slideX = 1; slideX <= 12; slideX++) {
+        if (this.villageMap.canWalkTo(this.player25dX - slideX, newY, 24, dynamicObstacles)) {
+          this.player25dY = newY;
+          this.player25dX -= Math.min(slideX, 2);
+          break;
+        }
+        if (this.villageMap.canWalkTo(this.player25dX + slideX, newY, 24, dynamicObstacles)) {
+          this.player25dY = newY;
+          this.player25dX += Math.min(slideX, 2);
+          break;
+        }
+      }
+    }
+
+    // Cập nhật state nhân vật
+    if (Math.abs(vx) > 0 || Math.abs(vy) > 0) {
+      this.player.state = 'walk';
+      this.player.vx = vx;
+    } else {
+      if (this.player.actionTimer <= 0) {
+        if (this.player.activeTool === 'hoe') {
+          this.player.state = 'cam_cuoc';
+        } else if (this.player.activeTool === 'water') {
+          this.player.state = 'cam_thung_nuoc';
+        } else if (this.player.activeTool === 'sickle') {
+          this.player.state = 'cam_liem';
+        } else {
+          this.player.state = 'idle';
+        }
+      }
+      this.player.vx = 0;
+    }
+
+    this.player.animTimer += dt;
+    if (this.player.actionTimer > 0) this.player.actionTimer -= dt;
+
+    // Khởi tạo vị trí bàn chân cho nhân vật & thú nuôi trên sân làng 2.5D
+    if (!this._animals25dInit) {
+      this.buffalo.x = 500;        this.buffalo.y = 520;
+      this.pig.x = 870;            this.pig.y = 550;        // Heo Hồng
+      this.hen.x = 1300;           this.hen.y = 480;        // Gà Mái
+      this.rooster.x = 1400;       this.rooster.y = 500;    // Gà Trống Dân Gian
+      this.stork.x = 2100;        this.stork.y = 470;      // Cò Trắng
+      this.beSinh.x = 2450;        this.beSinh.y = 530;      // Bé Sinh
+      this._animals25dInit = true;
+    }
+
+    // Cập nhật animation cho các nhân vật & thú nuôi
+    this.buffalo.update(dt, this.buffalo.y);
+    this.pig.update(dt, this.pig.y);
+    this.hen.update(dt, this.hen.y, this.player25dX);
+    this.rooster.update(dt, this.rooster.y, this.player25dX);
+    this.stork.update(dt, this.stork.y, this.player25dX);
+    this.beSinh.update(dt, this.beSinh.y, this.player25dX);
+
+    // Cập nhật camera 2.5D
+    this.villageMap.updateCamera(this.width, this.height, this.player25dX, this.player25dY);
+
+    // Cập nhật village renderer animation
+    this.villageRenderer.update(dt);
   }
 }
