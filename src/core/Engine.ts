@@ -229,8 +229,8 @@ export class Engine {
     // Cập nhật Player & Physics
     this.player.update(dt, this.inputController.input, this.groundY, this.sound);
 
-    // Cập nhật Cây Chuối & Cây Trồng & Ao Cá
-    this.floraManager.update(dt, this.groundY);
+    // Cập nhật Cây Chuối & Cây Trồng & Ao Cá & Giá Treo Nông Cụ
+    this.floraManager.update(dt, this.groundY, this.player.x, this.player.vx);
 
     // Hoàn tất bứng cây chuối khi cuốc xong
     if (this.inputController.pendingDigBanana && this.player.actionTimer <= 0) {
@@ -273,9 +273,9 @@ export class Engine {
       this.vegetableGirl.update(dt, this.groundY, this.player.x);
     }
 
-    // 2. Camera bám theo nhân vật mượt mà
+    // 2. Camera bám theo nhân vật mượt mà (Mở rộng từ -1200m bên trái ao cá)
     const targetCamX = this.player.x - this.width / 2;
-    const minCamX = -400;
+    const minCamX = -1200;
     const maxCamX = Math.max(0, this.mapWidth - this.width + 400);
     const clampedTarget = Math.max(minCamX, Math.min(maxCamX, targetCamX));
     this.cameraX += (clampedTarget - this.cameraX) * Math.min(1.0, dt * 8);

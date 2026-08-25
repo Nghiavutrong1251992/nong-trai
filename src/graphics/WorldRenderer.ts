@@ -61,7 +61,7 @@ export class WorldRenderer {
 
     ctx.save();
     const sectionWidth = 200; // Mỗi phân đoạn dài 200px
-    const startX = -400;
+    const startX = -1200;
     const endX = mapWidth;
     const totalSections = Math.round((endX - startX) / sectionWidth);
 
@@ -88,16 +88,20 @@ export class WorldRenderer {
         const secNumber = i + 1;
 
         let secName = `Đoạn ${secNumber}`;
-        if (x < -200) secName = 'Đoạn 0A (Đồng cỏ xa)';
-        else if (x < 0) secName = 'Đoạn 0B (Đồng cỏ)';
-        else if (x >= 0 && x < 800) secName = `Đoạn ${secNumber} (Ao Cá Làng Quê)`;
-        else if (x >= 800 && x < 2600) secName = `Đoạn ${secNumber} (Đại Lũy Tre Làng)`;
-        else if (x >= 2600 && x < 3200) secName = `Đoạn ${secNumber} (Mô Đất / Đồi Cỏ)`;
-        else if (x >= 3200 && x < 3400) secName = `Đoạn 19 (🌱 Mạ Non)`;
-        else if (x >= 3400 && x < 3600) secName = `Đoạn 20 (🌿 Lúa Nhánh)`;
-        else if (x >= 3600 && x < 3800) secName = `Đoạn 21 (🌾 Lúa Đòng)`;
-        else if (x >= 3800 && x < 4000) secName = `Đoạn 22 (🌾 Lúa Chín Vàng)`;
-        else if (x >= 4000) secName = `Đoạn 23 (Bờ Đê Cuối)`;
+        if (x < -1000) secName = 'Đoạn 0E (Đồng Cỏ Phía Tây)';
+        else if (x < -800) secName = 'Đoạn 0D (Đồng Cỏ Xanh)';
+        else if (x < -600) secName = 'Đoạn 0C (Nền Móng Nhà 3 Gian)';
+        else if (x < -400) secName = 'Đoạn 0B (Sân Cỏ Trước Móng)';
+        else if (x < -200) secName = 'Đoạn 0A (Bờ Cỏ Tây Ao)';
+        else if (x < 0) secName = 'Đoạn 0 (Lối Vào Ao Cá)';
+        else if (x >= 0 && x < 800) secName = `Đoạn ${Math.floor(x/200) + 1} (Ao Cá Làng Quê)`;
+        else if (x >= 800 && x < 2600) secName = `Đoạn ${Math.floor(x/200) + 1} (Đại Lũy Tre Làng)`;
+        else if (x >= 2600 && x < 3200) secName = `Đoạn ${Math.floor(x/200) + 1} (Mô Đất / Đồi Cỏ)`;
+        else if (x >= 3200 && x < 3400) secName = 'Đoạn 19 (🌱 Mạ Non)';
+        else if (x >= 3400 && x < 3600) secName = 'Đoạn 20 (🌿 Lúa Nhánh)';
+        else if (x >= 3600 && x < 3800) secName = 'Đoạn 21 (🌾 Lúa Đòng)';
+        else if (x >= 3800 && x < 4000) secName = 'Đoạn 22 (🌾 Lúa Chín Vàng)';
+        else if (x >= 4000) secName = 'Đoạn 23 (Bờ Đê Cuối)';
 
 
 

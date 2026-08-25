@@ -141,7 +141,13 @@ export class InputController {
         const btnMute = document.getElementById('btn-toggle-music');
         if (btnMute) btnMute.textContent = isMuted ? '🔇 Bật Nhạc [M]' : '🎵 Nhạc Làng Quê [M]';
       }
+    });
 
+    window.addEventListener('keyup', (e) => {
+      const k = e.key.toLowerCase();
+      if (k === 'a' || k === 'arrowleft') this.input.left = false;
+      if (k === 'd' || k === 'arrowright') this.input.right = false;
+      if (k === 'w' || k === 'arrowup' || k === ' ') this.input.jump = false;
     });
 
 
@@ -307,9 +313,22 @@ export class InputController {
     };
     document.getElementById('btn-fullscreen')?.addEventListener('click', toggleFullscreen);
 
-    // PWA Install System
+    // PWA Install System (Tự động dọn sạch Cache ServiceWorker trên Localhost để luôn nhận code mới nhất)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (const reg of registrations) {
+            reg.unregister();
+          }
+        }).catch(() => {});
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            for (const name of names) caches.delete(name);
+          });
+        }
+      } else {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
     }
 
     let deferredPrompt: any = null;

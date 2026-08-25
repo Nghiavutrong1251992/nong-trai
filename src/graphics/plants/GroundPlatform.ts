@@ -53,7 +53,7 @@ export class GroundPlatform {
   ): void {
     this.updateBuffer(width, height, groundY);
     if (this.groundCanvas) {
-      ctx.drawImage(this.groundCanvas, -500, 0);
+      ctx.drawImage(this.groundCanvas, -1200, 0);
     }
   }
 
@@ -71,7 +71,7 @@ export class GroundPlatform {
     this.cachedH = height;
     this.cachedGroundY = groundY;
 
-    const minX = -500;
+    const minX = -1200;
     const maxX = 4200;
     const bufferW = maxX - minX;
     const bufferH = height;

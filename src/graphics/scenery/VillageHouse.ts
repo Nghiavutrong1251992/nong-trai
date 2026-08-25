@@ -9,8 +9,8 @@
 import { GroundPlatform } from '../plants/GroundPlatform';
 
 export class VillageHouse {
-  // Tọa độ trung tâm ngôi nhà tại Đoạn 11 (x: 2060m)
-  public readonly houseX = 2060;
+  // Tọa độ trung tâm ngôi nhà tại Đoạn 12 - 13 (x: 2380m)
+  public readonly houseX = 2380;
   public readonly houseW = 530;
   public readonly houseH = 292;
 
