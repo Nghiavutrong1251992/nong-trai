@@ -11,7 +11,7 @@
  * 4. Báo cáo tiến trình tải chi tiết (0% -> 100%) cho Preloader UI.
  */
 
-export const ASSET_VERSION = 'v1.0.1';
+export const ASSET_VERSION = 'v1.0.4';
 
 export interface AssetDef {
   key: string;
@@ -37,10 +37,17 @@ export class AssetLoader {
     { key: 'be_sinh_run', src: '/assets/characters/be_sinh/be_sinh_run_sheet.png', isCore: true },
     { key: 'be_sinh_school', src: '/assets/characters/be_sinh/be_sinh_school_sheet.png', isCore: true },
 
-    // Bầu trời & Môi trường & Nhà cửa
+    // Bầu trời & Môi trường & Nhà cửa & Cây cổ thụ & Rễ buông
     { key: 'bg_sky', src: '/assets/environment/map1/bg_sky.jpg', isCore: true },
     { key: 'ground_tile', src: '/assets/environment/map1/ground_tile.png', isCore: true },
     { key: 'thatched_cottage', src: '/assets/environment/thatched_cottage.png', isCore: true },
+    { key: 'nha_tranh_25d', src: '/assets/environment/village25d/scenery/nha_tranh.png', isCore: true },
+    { key: 'hang_rao_tre_25d', src: '/assets/environment/village25d/scenery/hang_rao_tre.png', isCore: true },
+    { key: 'cay_da_co_thu_25d', src: '/assets/environment/village25d/scenery/cay_da_co_thu.png', isCore: true },
+    { key: 're_da_1', src: '/assets/environment/village25d/scenery/re_da_1.png', isCore: true },
+    { key: 're_da_2', src: '/assets/environment/village25d/scenery/re_da_2.png', isCore: true },
+    { key: 're_da_3', src: '/assets/environment/village25d/scenery/re_da_3.png', isCore: true },
+    { key: 're_da_4', src: '/assets/environment/village25d/scenery/re_da_4.png', isCore: true },
     { key: 'cottage_haystack', src: '/assets/environment/map1/cottage_haystack.png', isCore: true },
     { key: 'gate', src: '/assets/environment/map1/gate.png', isCore: true },
     { key: 'bamboo_trees', src: '/assets/environment/map1/bamboo_trees.png', isCore: true },

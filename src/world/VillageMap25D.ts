@@ -60,7 +60,7 @@ export class VillageMap25D {
 
     for (const item of VILLAGE_SCENERY) {
       const img = new Image();
-      img.src = item.imagePath;
+      img.src = item.imagePath ? (item.imagePath.includes('?') ? item.imagePath : `${item.imagePath}?v=3`) : '';
       img.onload = () => {
         loadCount++;
         if (loadCount >= totalItems) {
@@ -166,7 +166,7 @@ export class VillageMap25D {
   public canWalkTo(
     wx: number,
     wy: number,
-    playerW: number = 24,
+    playerW: number = 16,
     dynamicObstacles?: AnimalObstacle[]
   ): boolean {
     // 1. Phải nằm hoàn toàn bên trong WALKABLE POLYGON đường làng uốn lượn
@@ -199,8 +199,8 @@ export class VillageMap25D {
     for (const obstacle of obstacles) {
       const boxLeft = obstacle.x - obstacle.w / 2;
       const boxRight = obstacle.x + obstacle.w / 2;
-      const boxTop = obstacle.y - obstacle.h;
-      const boxBottom = obstacle.y + 10;
+      const boxTop = obstacle.y - obstacle.h * 0.5;
+      const boxBottom = obstacle.y + 6;
 
       if (
         wx + playerW / 2 > boxLeft &&

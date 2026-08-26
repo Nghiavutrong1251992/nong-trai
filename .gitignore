@@ -6,6 +6,7 @@ __pycache__/
 *.pyc
 
 # Raw Material Folders & Assets (Ảnh nguyên liệu)
+raw_source_assets/
 tưới nước/
 cuoc-dat-lau-mo-hoi/
 thu hoạch/

@@ -15,7 +15,7 @@ export class Player {
   public state: 'idle' | 'walk' | 'jump' | 'hoe' | 'cam_cuoc' | 'cam_thung_nuoc' | 'cam_liem' | 'harvest' | 'water' | 'fish' = 'idle';
   public activeTool: 'none' | 'hoe' | 'water' | 'sickle' = 'none';
   public animTimer: number = 0;
-  public speed: number = 190;
+  public speed: number = 160;
   public jumpForce: number = -380;
   public actionTimer: number = 0;
 

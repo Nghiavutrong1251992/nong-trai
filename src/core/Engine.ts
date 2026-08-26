@@ -430,12 +430,20 @@ export class Engine {
     const playerScale = getPerspectiveScale(this.player25dY);
     const dynamicObstacles = this.getDynamicAnimalObstacles();
 
-    // Mảng các con vật & nhân vật với feetY & perspective scale riêng từng con
+    // Mảng các con vật & nhân vật với feetY & perspective scale riêng từng con kèm bóng tiếp xúc mềm mại
     const animalRenderers = [
       {
         feetY: this.buffalo.y,
         render: (c: CanvasRenderingContext2D) => {
           const s = getPerspectiveScale(this.buffalo.y);
+          // Bóng tiếp xúc chân trâu (Màu nâu đậm ấm, tham gia scale perspective)
+          c.save();
+          c.fillStyle = 'rgba(45, 30, 15, 0.22)';
+          c.beginPath();
+          c.ellipse(this.buffalo.x, this.buffalo.y + 2, 46 * s, 15 * s, 0, 0, Math.PI * 2);
+          c.fill();
+          c.restore();
+
           c.save();
           c.translate(this.buffalo.x, this.buffalo.y);
           c.scale(s, s);
@@ -448,6 +456,14 @@ export class Engine {
         feetY: this.pig.y,
         render: (c: CanvasRenderingContext2D) => {
           const s = getPerspectiveScale(this.pig.y);
+          // Bóng tiếp xúc chân lợn
+          c.save();
+          c.fillStyle = 'rgba(45, 30, 15, 0.22)';
+          c.beginPath();
+          c.ellipse(this.pig.x, this.pig.y + 1, 26 * s, 10 * s, 0, 0, Math.PI * 2);
+          c.fill();
+          c.restore();
+
           c.save();
           c.translate(this.pig.x, this.pig.y);
           c.scale(s, s);
@@ -460,6 +476,14 @@ export class Engine {
         feetY: this.hen.y,
         render: (c: CanvasRenderingContext2D) => {
           const s = getPerspectiveScale(this.hen.y);
+          // Bóng tiếp xúc chân gà mái
+          c.save();
+          c.fillStyle = 'rgba(45, 30, 15, 0.20)';
+          c.beginPath();
+          c.ellipse(this.hen.x, this.hen.y + 1, 10 * s, 4.5 * s, 0, 0, Math.PI * 2);
+          c.fill();
+          c.restore();
+
           c.save();
           c.translate(this.hen.x, this.hen.y);
           c.scale(s, s);
@@ -472,6 +496,14 @@ export class Engine {
         feetY: this.rooster.y,
         render: (c: CanvasRenderingContext2D) => {
           const s = getPerspectiveScale(this.rooster.y);
+          // Bóng tiếp xúc chân gà trống
+          c.save();
+          c.fillStyle = 'rgba(45, 30, 15, 0.20)';
+          c.beginPath();
+          c.ellipse(this.rooster.x, this.rooster.y + 1, 11 * s, 5 * s, 0, 0, Math.PI * 2);
+          c.fill();
+          c.restore();
+
           c.save();
           c.translate(this.rooster.x, this.rooster.y);
           c.scale(s, s);
@@ -484,6 +516,14 @@ export class Engine {
         feetY: this.stork.y,
         render: (c: CanvasRenderingContext2D) => {
           const s = getPerspectiveScale(this.stork.y);
+          // Bóng tiếp xúc chân con cò
+          c.save();
+          c.fillStyle = 'rgba(45, 30, 15, 0.18)';
+          c.beginPath();
+          c.ellipse(this.stork.x, this.stork.y + 1, 12 * s, 5 * s, 0, 0, Math.PI * 2);
+          c.fill();
+          c.restore();
+
           c.save();
           c.translate(this.stork.x, this.stork.y);
           c.scale(s, s);
@@ -496,6 +536,14 @@ export class Engine {
         feetY: this.beSinh.y,
         render: (c: CanvasRenderingContext2D) => {
           const s = getPerspectiveScale(this.beSinh.y);
+          // Bóng tiếp xúc chân bé Sinh
+          c.save();
+          c.fillStyle = 'rgba(45, 30, 15, 0.22)';
+          c.beginPath();
+          c.ellipse(this.beSinh.x, this.beSinh.y + 1, 14 * s, 6 * s, 0, 0, Math.PI * 2);
+          c.fill();
+          c.restore();
+
           c.save();
           c.translate(this.beSinh.x, this.beSinh.y);
           c.scale(s, s);
@@ -512,8 +560,16 @@ export class Engine {
       this.width,
       this.height,
       this.player25dY,
-      // Callback vẽ Nhân vật với scale bàn chân
+      // Callback vẽ Nhân vật với bóng tiếp xúc & scale bàn chân
       () => {
+        // Bóng tiếp xúc chân nhân vật
+        ctx.save();
+        ctx.fillStyle = 'rgba(45, 30, 15, 0.22)';
+        ctx.beginPath();
+        ctx.ellipse(this.player25dX, this.player25dY + 1, 18 * playerScale, 7 * playerScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
         this.player.renderAt(
           ctx,
           this.player25dX,
@@ -565,8 +621,14 @@ export class Engine {
 
     if (input.left) { vx = -speed; this.player.facing = -1; }
     if (input.right) { vx = speed; this.player.facing = 1; }
-    if (input.up) { vy = -speed * 0.7; }    // Đi lên chậm hơn (xa camera)
-    if (input.down) { vy = speed * 0.7; }   // Đi xuống nhanh hơn (gần camera)
+    if (input.up) { vy = -speed * 0.75; }   // Đi lên (xa camera)
+    if (input.down) { vy = speed * 0.75; }  // Đi xuống (gần camera)
+
+    // Chuẩn hóa tốc độ khi đi chéo
+    if (vx !== 0 && vy !== 0) {
+      vx *= 0.7071;
+      vy *= 0.7071;
+    }
 
     // Tính vị trí mới
     const newX = this.player25dX + vx * dt;
@@ -574,39 +636,40 @@ export class Engine {
 
     // Kiểm tra collision với Đa giác + Chướng ngại vật tĩnh + Chướng ngại vật động tất cả con vật
     const dynamicObstacles = this.getDynamicAnimalObstacles();
+    const feetW = 16;
 
     // 1. Di chuyển X (Kèm thuật toán trượt theo bờ dốc tam giác / nghiêng - Wall Sliding)
-    if (this.villageMap.canWalkTo(newX, this.player25dY, 24, dynamicObstacles)) {
+    if (this.villageMap.canWalkTo(newX, this.player25dY, feetW, dynamicObstacles)) {
       this.player25dX = newX;
     } else if (vx !== 0) {
-      // Khi gặp cạnh đa giác uốn dốc, thử trượt nhẹ Y để nhân vật tự động trượt mượt tiếp tục di chuyển
-      for (let slideY = 1; slideY <= 12; slideY++) {
-        if (this.villageMap.canWalkTo(newX, this.player25dY - slideY, 24, dynamicObstacles)) {
+      // Khi gặp cạnh đa giác uốn dốc hoặc chướng ngại vật, thử trượt nhẹ Y để nhân vật tự động trượt mượt
+      for (let slideY = 2; slideY <= 16; slideY += 2) {
+        if (this.villageMap.canWalkTo(newX, this.player25dY - slideY, feetW, dynamicObstacles)) {
           this.player25dX = newX;
-          this.player25dY -= Math.min(slideY, 2);
+          this.player25dY -= Math.min(slideY, 3);
           break;
         }
-        if (this.villageMap.canWalkTo(newX, this.player25dY + slideY, 24, dynamicObstacles)) {
+        if (this.villageMap.canWalkTo(newX, this.player25dY + slideY, feetW, dynamicObstacles)) {
           this.player25dX = newX;
-          this.player25dY += Math.min(slideY, 2);
+          this.player25dY += Math.min(slideY, 3);
           break;
         }
       }
     }
 
     // 2. Di chuyển Y (Kèm trượt ngang X)
-    if (this.villageMap.canWalkTo(this.player25dX, newY, 24, dynamicObstacles)) {
+    if (this.villageMap.canWalkTo(this.player25dX, newY, feetW, dynamicObstacles)) {
       this.player25dY = newY;
     } else if (vy !== 0) {
-      for (let slideX = 1; slideX <= 12; slideX++) {
-        if (this.villageMap.canWalkTo(this.player25dX - slideX, newY, 24, dynamicObstacles)) {
+      for (let slideX = 2; slideX <= 16; slideX += 2) {
+        if (this.villageMap.canWalkTo(this.player25dX - slideX, newY, feetW, dynamicObstacles)) {
           this.player25dY = newY;
-          this.player25dX -= Math.min(slideX, 2);
+          this.player25dX -= Math.min(slideX, 3);
           break;
         }
-        if (this.villageMap.canWalkTo(this.player25dX + slideX, newY, 24, dynamicObstacles)) {
+        if (this.villageMap.canWalkTo(this.player25dX + slideX, newY, feetW, dynamicObstacles)) {
           this.player25dY = newY;
-          this.player25dX += Math.min(slideX, 2);
+          this.player25dX += Math.min(slideX, 3);
           break;
         }
       }

@@ -183,9 +183,12 @@ export class InputController {
       const k = e.key.toLowerCase();
       if (k === 'a' || k === 'arrowleft') this.input.left = false;
       if (k === 'd' || k === 'arrowright') this.input.right = false;
-      if (k === 'w' || k === 'arrowup') this.input.up = false;
+      if (k === 'w' || k === 'arrowup') {
+        this.input.up = false;
+        this.input.jump = false;
+      }
       if (k === 's' || k === 'arrowdown') this.input.down = false;
-      if (k === 'w' || k === 'arrowup' || k === ' ') this.input.jump = false;
+      if (k === ' ') this.input.jump = false;
     });
 
 
@@ -288,9 +291,6 @@ export class InputController {
     document.getElementById('btn-toggle-time')?.addEventListener('click', cycleTimeOfDay);
     document.getElementById('m-btn-time')?.addEventListener('click', cycleTimeOfDay);
 
-
-
-
     // Bật / Tắt Phụ Đề Nhãn Tên Thú Nuôi [N]
     const toggleAnimalLabels = () => {
       this.engine.showAnimalLabels = !this.engine.showAnimalLabels;
@@ -317,14 +317,6 @@ export class InputController {
         btnGrid.classList.toggle('active', this.engine.showMapRuler);
         btnGrid.textContent = this.engine.showMapRuler ? '📐 Thước Đo: BẬT [G]' : '📐 Thước Đo: TẮT [G]';
       }
-    });
-
-
-    window.addEventListener('keyup', (e) => {
-      const k = e.key.toLowerCase();
-      if (k === 'a' || k === 'arrowleft') this.input.left = false;
-      if (k === 'd' || k === 'arrowright') this.input.right = false;
-      if (k === 'w' || k === 'arrowup' || k === ' ') this.input.jump = false;
     });
 
     // Bật / Tắt Nhạc Làng Quê
@@ -454,6 +446,8 @@ export class InputController {
         joyKnob.classList.remove('active');
         this.input.left = false;
         this.input.right = false;
+        this.input.up = false;
+        this.input.down = false;
         activePointerId = null;
       };
 
@@ -479,7 +473,7 @@ export class InputController {
         const knobY = Math.sin(angle) * clampedDist;
         joyKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
 
-        const deadzone = 12;
+        const deadzone = 10;
         if (Math.abs(dx) > deadzone) {
           if (dx < 0) {
             this.input.left = true;
@@ -491,6 +485,19 @@ export class InputController {
         } else {
           this.input.left = false;
           this.input.right = false;
+        }
+
+        if (Math.abs(dy) > deadzone) {
+          if (dy < 0) {
+            this.input.up = true;
+            this.input.down = false;
+          } else {
+            this.input.up = false;
+            this.input.down = true;
+          }
+        } else {
+          this.input.up = false;
+          this.input.down = false;
         }
       };
 

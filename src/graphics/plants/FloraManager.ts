@@ -69,7 +69,6 @@ export class FloraManager {
     this.house.render(ctx, groundY, animTimer, cameraX, screenW);
     // 2. Vẽ Giá Treo Khung Tre Đứng (Đầy đủ dụng cụ)
     this.toolRack.render(ctx, groundY, animTimer, cameraX, screenW);
-    this.toolRack.render(ctx, groundY, animTimer, cameraX, screenW);
     // 4. Vẽ Rặng Tre Làng và Vườn Chuối
     this.bamboo.render(ctx, groundY, animTimer, cameraX, screenW, playerX);
     this.banana.render(ctx, groundY, animTimer, playerX);
